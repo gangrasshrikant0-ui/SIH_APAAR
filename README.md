@@ -1,1 +1,1 @@
-# SIH_APAAR
+# SIH APAAR Student Data Platform
