@@ -51,4 +51,9 @@ app.get("/api/institutions", async (req, res) => {
     }
 });
 
+
+const uploadsRouter = require("./modules/uploads/uploads.routes");
+
+app.use("/api/uploads", uploadsRouter);
+
 module.exports = app;
