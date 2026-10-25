@@ -7,7 +7,7 @@ An automated validation, monitoring, and verification layer for the **All India 
 
 ## Key Principles & Scope Boundaries
 
-1. **Validation & Monitoring Layer:** Does **NOT** replace college ERPs. Colleges ingest data via CSV upload with column-mapping or REST API.
+1. **Validation & Monitoring Layer:** Does **NOT** replace college ERPs. Colleges can use the demonstrated CSV upload with column-mapping; REST API ingestion is planned but not connected in this prototype.
 2. **Format Verification:** Does **NOT** generate APAAR IDs (issued exclusively by the Government of India). Checks verify 12-digit numeric structure (*format-checked, not identity-verified*).
 3. **Immutable Rulebook:** Never edits approved intake. Ingestion compares student admissions against AICTE Approval Master quotas.
 4. **Honesty Rules:**
@@ -15,6 +15,9 @@ An automated validation, monitoring, and verification layer for the **All India 
    - Cross-institution duplicates are *flagged for review*, never labeled fraud.
    - Invalid rows are never counted as accepted into the repository.
    - DigiLocker/APAAR connections are marked *simulated / demo mode*.
+   - There is no live ERP or AICTE system connection in this prototype. CSV reports and planned API contract examples represent integration readiness only.
+   - AICTE Central Repository is a read-only synthetic demonstration view; it is not a live central database.
+   - APAAR is used for repository duplicate and cross-institution conflict checks; external verification resolves an exact synthetic record reference against stored mock records.
 
 ---
 
@@ -48,8 +51,7 @@ The landing page features **three dedicated login cards** with one-click demo cr
 | :--- | :--- | :--- | :--- |
 | **College (PICT Pune)** | `pict.admin@college.edu` | `demo123` | `/college/dashboard` |
 | **AICTE Central Reviewer** | `aicte.central@gov.in` | `demo123` | `/aicte/dashboard` |
-| **Student (Aarav Sharma)** | `1111 2222 3333` | `7492` *(demo mode)* | `/student/record` |
-| **Public Verifier** | *No login required* | *N/A* | `/verify/111122223333` |
+| **External Verifier (Employer / Regulator)** | `verifier@credential-review.example` | `demo123` | `/external/verify` |
 
 ### College portal tabs
 After college login the landing page is **Intake Dashboard**. Tab order:
@@ -60,8 +62,16 @@ After college login the landing page is **Intake Dashboard**. Tab order:
 4. Validate Records (`/college/validate`) — runs the existing validation engine on staged records
 5. Issue Workbench (`/college/workbench`)
 6. Compliance Reports (`/college/reports`)
+7. Student Journey (`/college/student-journey`) — exact APAAR lookup for this institution
 
 `/college` redirects to `/college/dashboard`. Previous paths (`/college/upload`, `/college/workbench`, `/college/dashboard`, `/college/reports`) still work.
+
+### AICTE portal tabs
+AICTE users can open National Dashboard (`/aicte/dashboard`), Review Queue
+(`/aicte/workbench`), National Reports (`/aicte/reports`), the read-only
+synthetic Central Repository (`/aicte/repository`), and Student Journey
+(`/aicte/student-journey`). The repository view demonstrates the intended
+handoff using local mock data; it is not a live AICTE connection.
 
 ### Route Guards & Compliance Audit Log
 Any attempt by a user to access a route belonging to another role (e.g. a College user attempting `/aicte/*`) is intercepted by `ProtectedRoute`, presents an accessible **Access Denied** notice, and records an `UNAUTHORIZED_ACCESS_ATTEMPT` event with timestamp into the Mock Compliance Audit Log.
@@ -128,5 +138,10 @@ Run `npm test` in the terminal to execute the test suite:
 
 - [x] **Phase 1:** Landing page, three-card login, route guards, College Upload and Issue workbench with the faulty mock batch.
 - [x] **Phase 2:** Correction loop, automatic revalidation, auto-escalation ("Simulate 8 days passing"), AICTE review queue & adjudication, College & AICTE dashboards, reports, and automated acceptance tests.
-- [ ] **Phase 3:** Student screens, consent management, QR code verification, public verify page, certificate preview, audit log explorer.
+- [x] **External verification portal:** Authorised stakeholders can verify one exact record reference at a time and review only their own verification history.
+- [x] **Student certificates:** College users can preview and print certificates for accepted records, including both the institutional Student ID / PRN and APAAR ID.
+- [x] **Verifiable certificate records:** Accepted records receive a synthetic reference that is printed as a QR code and link on the certificate.
+- [x] **Student Journey:** Authorised College and AICTE users can search one exact APAAR ID; the External Verifier remains reference-only.
+- [x] **Verification integrity:** Accepted records receive persisted SHA-256 verification metadata; altered metadata cannot return a `VALID` reference result.
+- [x] **Admission identity fields:** Records expose actual enrolment, supernumerary allocation, OCI status, and Foreign National status in the relevant data-entry and reporting paths.
 - [ ] **Phase 4:** Polish, accessibility pass, complete demo-story walkthrough.

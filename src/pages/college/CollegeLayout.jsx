@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Building2, UploadCloud, AlertCircle, LayoutDashboard, FileText, CheckCircle2, UserPlus } from "lucide-react";
+import { Building2, UploadCloud, AlertCircle, LayoutDashboard, FileText, CheckCircle2, UserPlus, Route } from "lucide-react";
 import { getCurrentUser } from "../../mocks/mockStore";
 import { collegeApi } from "../../api/collegeApi";
 import { COLLEGE_PORTAL_TABS } from "./collegeNav";
@@ -11,7 +11,8 @@ const TAB_ICONS = {
   "/college/upload": UploadCloud,
   "/college/validate": CheckCircle2,
   "/college/workbench": AlertCircle,
-  "/college/reports": FileText
+  "/college/reports": FileText,
+  "/college/student-journey": Route
 };
 
 export function CollegeLayout() {

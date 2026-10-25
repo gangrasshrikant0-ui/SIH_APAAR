@@ -143,6 +143,20 @@ function SingleStudentForm({ institution, onSaved }) {
           {CATEGORIES.map((c) => <option key={c} value={c}>{c === "NRI_FN" ? "NRI / OCI / Foreign National (NRI_FN)" : c}</option>)}
         </select>)}
 
+        {field("sf-oci", "OCI Status", false, <select id="sf-oci" className="filter-select" value={form.ociStatus} onChange={(e) => set("ociStatus", e.target.value)}>
+          <option value="NOT_APPLICABLE">Not applicable</option>
+          <option value="NOT_RECORDED">Not recorded</option>
+          <option value="CONFIRMED">Confirmed</option>
+        </select>)}
+
+        {field("sf-fn", "Foreign National Status", false, <select id="sf-fn" className="filter-select" value={form.foreignNationalStatus} onChange={(e) => set("foreignNationalStatus", e.target.value)}>
+          <option value="NOT_APPLICABLE">Not applicable</option>
+          <option value="NOT_RECORDED">Not recorded</option>
+          <option value="CONFIRMED">Confirmed</option>
+        </select>)}
+
+        {field("sf-supernumerary", "Supernumerary Seats", false, <input id="sf-supernumerary" type="number" min="0" className="filter-select" value={form.supernumerarySeats} onChange={(e) => set("supernumerarySeats", e.target.value)} />)}
+
         {field("sf-gender", "Gender", false, <select id="sf-gender" className="filter-select" value={form.gender} onChange={(e) => set("gender", e.target.value)}>
           <option value="">— Select —</option>
           <option value="Male">Male</option>
@@ -229,6 +243,9 @@ function MultiStudentForm({ institution, onSaved }) {
               <th style={{ ...colStyle, minWidth: "180px" }} scope="col">Programme</th>
               <th style={{ ...colStyle, minWidth: "70px" }} scope="col">Year</th>
               <th style={{ ...colStyle, minWidth: "110px" }} scope="col">Category</th>
+              <th style={{ ...colStyle, minWidth: "110px" }} scope="col">OCI Status</th>
+              <th style={{ ...colStyle, minWidth: "140px" }} scope="col">FN Status</th>
+              <th style={{ ...colStyle, minWidth: "100px" }} scope="col">Supernumerary</th>
               <th style={{ ...colStyle, minWidth: "80px" }} scope="col">Gender</th>
               <th style={{ ...colStyle, minWidth: "120px" }} scope="col">Admission Date</th>
               <th style={{ ...colStyle, width: "36px" }} scope="col" aria-label="Remove row"></th>
@@ -298,6 +315,19 @@ function MultiStudentForm({ institution, onSaved }) {
                   <select style={inputStyle} value={row.category} onChange={(e) => setCell(idx, "category", e.target.value)} aria-label={`Row ${idx + 1} Category`}>
                     {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
+                </td>
+                <td style={colStyle}>
+                  <select style={inputStyle} value={row.ociStatus} onChange={(e) => setCell(idx, "ociStatus", e.target.value)} aria-label={`Row ${idx + 1} OCI Status`}>
+                    <option value="NOT_APPLICABLE">N/A</option><option value="NOT_RECORDED">Not recorded</option><option value="CONFIRMED">Confirmed</option>
+                  </select>
+                </td>
+                <td style={colStyle}>
+                  <select style={inputStyle} value={row.foreignNationalStatus} onChange={(e) => setCell(idx, "foreignNationalStatus", e.target.value)} aria-label={`Row ${idx + 1} Foreign National Status`}>
+                    <option value="NOT_APPLICABLE">N/A</option><option value="NOT_RECORDED">Not recorded</option><option value="CONFIRMED">Confirmed</option>
+                  </select>
+                </td>
+                <td style={colStyle}>
+                  <input type="number" min="0" style={inputStyle} value={row.supernumerarySeats} onChange={(e) => setCell(idx, "supernumerarySeats", e.target.value)} aria-label={`Row ${idx + 1} Supernumerary Seats`} />
                 </td>
                 <td style={colStyle}>
                   <select style={inputStyle} value={row.gender} onChange={(e) => setCell(idx, "gender", e.target.value)} aria-label={`Row ${idx + 1} Gender`}>

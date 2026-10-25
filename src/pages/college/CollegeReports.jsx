@@ -4,17 +4,19 @@ import {
   Download,
   CheckCircle2,
   FileSpreadsheet,
-  ShieldAlert,
   Printer,
-  Lock,
-  Building2
+  Award
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { collegeApi } from "../../api/collegeApi";
 
 export function CollegeReports() {
   const [downloadSuccess, setDownloadSuccess] = useState("");
-  const [securityDeniedMsg, setSecurityDeniedMsg] = useState("");
   const [printableReport, setPrintableReport] = useState(null);
+  const [certificateRecords, setCertificateRecords] = useState([]);
+  const [certificateRecord, setCertificateRecord] = useState(null);
+  const [certificateError, setCertificateError] = useState("");
+  const [copiedReference, setCopiedReference] = useState("");
 
   const handleDownloadIntakeCSV = async () => {
     try {
@@ -48,17 +50,6 @@ export function CollegeReports() {
     }
   };
 
-  // Test Security Guard: College attempting to download another college's data
-  const handleTestUnauthorizedDownload = async () => {
-    setSecurityDeniedMsg("");
-    try {
-      // Attempting to download COEP Tech data (INST-002) while logged in as PICT (INST-001)
-      await collegeApi.exportIntakeCSV("INST-002");
-    } catch (err) {
-      setSecurityDeniedMsg(err.message + " An unauthorized download event has been timestamped and logged in the AICTE Security Audit Log.");
-      setTimeout(() => setSecurityDeniedMsg(""), 7000);
-    }
-  };
 
   // Printable PDF view
   const handlePrintReport = async (type) => {
@@ -71,6 +62,37 @@ export function CollegeReports() {
     });
   };
 
+  const handleOpenCertificate = async () => {
+    setCertificateError("");
+    try {
+      const records = await collegeApi.getAcceptedRecords();
+      setCertificateRecords(records);
+      setCertificateRecord(records[0] || null);
+      if (records.length === 0) {
+        setCertificateError("No accepted student records are available for certificate printing.");
+      }
+    } catch (error) {
+      setCertificateError(error.message || "Unable to load accepted records.");
+    }
+  };
+
+  const getVerificationLink = (record) =>
+    record?.recordReference
+      ? `${window.location.origin}/verify/${encodeURIComponent(record.recordReference)}`
+      : "";
+
+  const handleCopyVerificationLink = async () => {
+    const link = getVerificationLink(certificateRecord);
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedReference(certificateRecord.recordReference);
+      setTimeout(() => setCopiedReference(""), 2500);
+    } catch (error) {
+      setCertificateError(error.message || "Unable to copy the verification link.");
+    }
+  };
+
   return (
     <div className="gov-container">
       <div style={{ marginBottom: "1.75rem" }}>
@@ -78,7 +100,7 @@ export function CollegeReports() {
           Institutional Compliance Reports & Data Exports
         </h2>
         <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
-          Official statutory exports for AICTE accreditation, annual reporting, and university audits. Institutions can download only their own data.
+          Prototype CSV and printable exports for AICTE accreditation, annual reporting, and university audit workflows. No live submission to those systems is configured.
         </p>
       </div>
 
@@ -89,13 +111,10 @@ export function CollegeReports() {
         </div>
       )}
 
-      {securityDeniedMsg && (
-        <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#991B1B", padding: "1rem", borderRadius: "8px", marginBottom: "1.5rem", display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-          <ShieldAlert size={20} style={{ flexShrink: 0, marginTop: "2px" }} />
-          <div>
-            <strong style={{ display: "block", marginBottom: "2px" }}>Data Isolation Policy Enforced (403 Forbidden)</strong>
-            <span>{securityDeniedMsg}</span>
-          </div>
+
+      {certificateError && (
+        <div role="alert" style={{ background: "#FEF2F2", border: "1px solid #FECACA", color: "#991B1B", padding: "0.85rem 1rem", borderRadius: "8px", marginBottom: "1.5rem" }}>
+          {certificateError}
         </div>
       )}
 
@@ -164,29 +183,21 @@ export function CollegeReports() {
         </div>
       </div>
 
-      {/* Security Isolation Test Panel */}
-      <div className="gov-card" style={{ background: "#F8FAFC", borderColor: "#CBD5E1" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#EFF6FF", color: "#1E40AF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Lock size={18} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <h4 style={{ fontSize: "1rem", color: "var(--gov-navy-900)", marginBottom: "0.25rem" }}>
-              Multi-Institution Data Isolation Verification (Compliance Test)
-            </h4>
-            <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.85rem", lineHeight: "1.5" }}>
-              Under SIH 2026 data governance rules, colleges are strictly segregated and may never download or view another institution's compliance reports.
-            </p>
-            <button
-              type="button"
-              className="btn btn-outline-danger btn-sm"
-              onClick={handleTestUnauthorizedDownload}
-            >
-              <ShieldAlert size={13} />
-              <span>Test Security: Request COEP Tech Report (INST-002)</span>
-            </button>
-          </div>
+      {/* Report 3: Student Certificate */}
+      <div className="gov-card" style={{ marginBottom: "2.5rem" }}>
+        <div style={{ width: "48px", height: "48px", borderRadius: "10px", background: "#EFF6FF", color: "#1D4ED8", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem" }}>
+          <Award size={24} />
         </div>
+        <h3 style={{ fontSize: "1.15rem", color: "var(--gov-navy-900)", marginBottom: "0.5rem" }}>
+          Student Credential Certificate
+        </h3>
+        <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1.25rem", lineHeight: "1.5" }}>
+          Preview and print a certificate for an accepted student record. The certificate includes the institutional Student ID / PRN and APAAR ID.
+        </p>
+        <button type="button" className="btn btn-primary" onClick={handleOpenCertificate}>
+          <Award size={14} />
+          <span>Open Certificate Preview</span>
+        </button>
       </div>
 
       {/* Printable Modal / View */}
@@ -251,6 +262,104 @@ export function CollegeReports() {
                 <Printer size={14} />
                 <span>Print Document</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {certificateRecord && (
+        <div className="modal-backdrop print-certificate-backdrop" onClick={() => setCertificateRecord(null)}>
+          <div className="modal-dialog print-certificate-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "820px", padding: "2.5rem" }}>
+            <div className="print-certificate">
+              <div style={{ textAlign: "center", borderBottom: "3px solid var(--gov-navy-900)", paddingBottom: "1.25rem", marginBottom: "1.75rem" }}>
+                <div style={{ fontSize: "0.8125rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontWeight: "700" }}>
+                  Government Credential Record
+                </div>
+                <h2 style={{ fontSize: "1.8rem", color: "var(--gov-navy-900)", margin: "0.5rem 0" }}>
+                  Student Credential Certificate
+                </h2>
+                <div style={{ fontSize: "0.95rem", color: "var(--text-muted)" }}>
+                  Pune Institute of Computer Technology (PICT)
+                </div>
+              </div>
+
+              <p style={{ textAlign: "center", color: "var(--text-muted)", lineHeight: "1.5", marginBottom: "1.75rem" }}>
+                This certificate confirms that the following synthetic student record is accepted in the institutional repository.
+              </p>
+
+              <dl style={{ display: "grid", gridTemplateColumns: "minmax(180px, 0.8fr) 1.2fr", gap: "0.9rem 1.25rem", margin: 0, padding: "1.25rem", border: "1px solid var(--border-medium)", borderRadius: "8px" }}>
+                <dt style={{ fontWeight: "700", color: "var(--text-muted)" }}>Student name</dt>
+                <dd style={{ margin: 0, fontWeight: "700", color: "var(--gov-navy-900)" }}>{certificateRecord.studentName}</dd>
+                <dt style={{ fontWeight: "700", color: "var(--text-muted)" }}>Institutional Student ID / PRN</dt>
+                <dd style={{ margin: 0, fontFamily: "monospace" }}>{certificateRecord.studentId}</dd>
+                <dt style={{ fontWeight: "700", color: "var(--text-muted)" }}>APAAR ID</dt>
+                <dd style={{ margin: 0, fontFamily: "monospace", fontWeight: "700" }}>{certificateRecord.apaarId || "[MISSING]"}</dd>
+                <dt style={{ fontWeight: "700", color: "var(--text-muted)" }}>Programme</dt>
+                <dd style={{ margin: 0 }}>{certificateRecord.programme}</dd>
+                <dt style={{ fontWeight: "700", color: "var(--text-muted)" }}>Academic year</dt>
+                <dd style={{ margin: 0 }}>{certificateRecord.academicYear || "2026-2027"}</dd>
+                <dt style={{ fontWeight: "700", color: "var(--text-muted)" }}>Record status</dt>
+                <dd style={{ margin: 0 }}>{certificateRecord.status}</dd>
+              </dl>
+
+              <div className="certificate-verification" style={{ marginTop: "1.75rem", paddingTop: "1rem", borderTop: "1px solid var(--border-light)", textAlign: "center" }}>
+                {certificateRecord.recordReference ? (
+                  <>
+                    <div className="certificate-qr" role="img" aria-label={`QR code for record reference ${certificateRecord.recordReference}`}>
+                      <QRCodeSVG
+                        value={getVerificationLink(certificateRecord)}
+                        size={240}
+                        level="H"
+                        includeMargin
+                        bgColor="#FFFFFF"
+                        fgColor="#000000"
+                      />
+                    </div>
+                    <p style={{ margin: "0.75rem 0 0.25rem", fontWeight: "700", color: "var(--gov-navy-900)" }}>
+                      Verification reference: <code>{certificateRecord.recordReference}</code>
+                    </p>
+                    <a href={getVerificationLink(certificateRecord)} target="_blank" rel="noreferrer" style={{ fontSize: "0.8rem", overflowWrap: "anywhere" }}>
+                      {getVerificationLink(certificateRecord)}
+                    </a>
+                    <div className="print-certificate-actions" style={{ marginTop: "0.75rem" }}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={handleCopyVerificationLink}>
+                        {copiedReference === certificateRecord.recordReference ? "Copied" : "Copy verification link"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ margin: 0, color: "var(--text-muted)" }}>No verification reference yet</p>
+                )}
+                <p style={{ margin: "1rem 0 0", fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                  Verification mode: DEMO (simulated). Not an officially signed credential. A correctly formatted APAAR ID is not identity-verified.
+                </p>
+              </div>
+            </div>
+
+            <div className="print-certificate-actions" style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem", marginTop: "1.75rem" }}>
+              <label className="filter-group" style={{ maxWidth: "360px" }}>
+                <span className="filter-label">Accepted record</span>
+                <select
+                  className="filter-select"
+                  value={certificateRecord.id}
+                  onChange={(event) => setCertificateRecord(certificateRecords.find((record) => record.id === event.target.value) || null)}
+                >
+                  {certificateRecords.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {record.studentName} — {record.studentId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem" }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setCertificateRecord(null)}>
+                  Close Preview
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => window.print()}>
+                  <Printer size={14} />
+                  <span>Print Certificate</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

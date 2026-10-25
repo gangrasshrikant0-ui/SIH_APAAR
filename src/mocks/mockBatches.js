@@ -1,6 +1,39 @@
 // Mock Batches for APAAR Student Data Platform
 // Contains synthetic demo records adhering to SIH 2026 specifications.
 
+const REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export function generateRecordReference(existingReferences = new Set()) {
+  let reference;
+  do {
+    const part = () => Array.from({ length: 4 }, () =>
+      REFERENCE_ALPHABET[randomIndex(REFERENCE_ALPHABET.length)]
+    ).join("");
+    reference = `APR-${part()}-${part()}`;
+  } while (existingReferences.has(reference));
+  return reference;
+}
+
+function randomIndex(max) {
+  if (globalThis.crypto?.getRandomValues) {
+    const values = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(values);
+    return values[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
+function seedAcceptedRecord(record, existingReferences) {
+  const recordReference = generateRecordReference(existingReferences);
+  existingReferences.add(recordReference);
+  return {
+    ...record,
+    recordReference,
+    consentForExternalVerification: record.consentForExternalVerification ?? true,
+    revoked: record.revoked ?? false
+  };
+}
+
 export const STANDARD_COLUMNS = [
   { key: "studentId", label: "Institutional Student ID / PRN", aliases: ["PRN", "Roll No", "RollNumber", "StudentID", "Registration No"] },
   { key: "studentName", label: "Student Full Name", aliases: ["Name", "Candidate Name", "StudentName"] },
@@ -8,6 +41,9 @@ export const STANDARD_COLUMNS = [
   { key: "programme", label: "Degree & Programme", aliases: ["Course", "Branch", "Programme", "Department"] },
   { key: "yearOfStudy", label: "Academic Year of Study", aliases: ["Year", "Class", "Semester", "YearOfStudy"] },
   { key: "category", label: "Seat Category", aliases: ["Category", "Quota", "Admission Category", "SeatType"] },
+  { key: "ociStatus", label: "OCI Status", aliases: ["OCI", "OCI Status"] },
+  { key: "foreignNationalStatus", label: "Foreign National Status", aliases: ["FN", "Foreign National", "FN Status"] },
+  { key: "supernumerarySeats", label: "Supernumerary Seats", aliases: ["Supernumerary", "Supernumerary Seats"] },
   { key: "admissionDate", label: "Date of Admission", aliases: ["AdmissionDate", "DOA", "JoiningDate"] },
   { key: "gender", label: "Gender", aliases: ["Gender", "Sex"] }
 ];
@@ -25,6 +61,7 @@ export const FAULTY_MOCK_BATCH = {
   flaggedRowsCount: 7,
   readyToAcceptCount: 18,
   acceptedCount: 0,
+  actualEnrolment: 0,
   records: [
     // Planted Fault 1: Missing APAAR ID -> Missing-ID check
     {
@@ -159,8 +196,8 @@ export const FAULTY_MOCK_BATCH = {
       issueTitle: "Cross-Institution Duplicate",
       issueStatus: "OPEN",
       severity: "HIGH",
-      reason: "Cross-institution conflict: student with APAAR '345678901234' is actively enrolled at COEP Tech (AICTE-1-1099231). Flagged for review, not fraud.",
-      evidence: "Conflicting active enrolment matched at College of Engineering Pune (COEP Tech, AICTE-1-1099231). Flagged for review, not fraud.",
+      reason: "Cross-institution conflict: APAAR '345678901234' is active at Pune Institute of Computer Technology (PICT Pune), Information Technology, TE and College of Engineering Pune (COEP Tech), Computer Engineering, TE. Flagged for review, not fraud.",
+      evidence: "PICT Pune: Information Technology, TE; COEP Tech: Computer Engineering, TE. Both active enrolments require review.",
       owner: "AICTE Central Reviewer",
       requiredAction: "Review transfer cancellation evidence or NOC from prior institution before confirming.",
       dueDate: "2026-10-28",
@@ -517,8 +554,8 @@ export const COEP_MOCK_BATCH = {
       issueTitle: "Cross-Institution Duplicate",
       issueStatus: "OPEN",
       severity: "HIGH",
-      reason: "Active enrolment conflict: student with APAAR '345678901234' matches active record at PICT Pune (AICTE-1-1029384). Flagged for review, not fraud.",
-      evidence: "Active concurrent registration in TE Computer / IT across PICT & COEP.",
+      reason: "Cross-institution conflict: APAAR '345678901234' is active at College of Engineering Pune (COEP Tech), Computer Engineering, TE and Pune Institute of Computer Technology (PICT Pune), Information Technology, TE. Flagged for review, not fraud.",
+      evidence: "COEP Tech: Computer Engineering, TE; PICT Pune: Information Technology, TE. Both active enrolments require review.",
       owner: "AICTE Central Reviewer",
       requiredAction: "AICTE Reviewer must confirm transfer/withdrawal certificate from previous institution.",
       dueDate: "2026-10-28",
@@ -544,5 +581,105 @@ export const VJTI_MOCK_BATCH = {
   flaggedRowsCount: 0,
   readyToAcceptCount: 0,
   acceptedCount: 115, // Pre-accepted records (out of 120 approved intake)
-  records: []
+  records: (() => {
+    const references = new Set();
+    return [
+      seedAcceptedRecord({
+        id: "VJTI-REC-001",
+        studentId: "VJTI-COMP-001",
+        studentName: "Nisha Rao",
+        apaarId: "900100200303",
+        programme: "Computer Engineering",
+        programmeCode: "COMP",
+        yearOfStudy: "BE",
+        category: "GENERAL",
+        admissionDate: "2026-08-12",
+        gender: "Female",
+        status: "ACCEPTED",
+        issueType: null,
+        issueStatus: "RESOLVED",
+        reason: "Synthetic accepted demo record.",
+        evidence: "Synthetic accepted demo record.",
+        owner: "Central Repository",
+        requiredAction: "Ready for verification.",
+        dueDate: null,
+        isOverdue: false,
+        isEscalated: false,
+        validationNote: "format-checked, not identity-verified"
+      }, references),
+      seedAcceptedRecord({
+        id: "VJTI-REC-002",
+        studentId: "VJTI-IT-002",
+        studentName: "Kabir Shah",
+        apaarId: "900100200304",
+        programme: "Information Technology",
+        programmeCode: "IT",
+        yearOfStudy: "BE",
+        category: "OBC",
+        admissionDate: "2026-08-12",
+        gender: "Male",
+        status: "ACCEPTED",
+        issueType: null,
+        issueStatus: "RESOLVED",
+        reason: "Synthetic accepted demo record.",
+        evidence: "Synthetic accepted demo record.",
+        owner: "Central Repository",
+        requiredAction: "Ready for verification.",
+        dueDate: null,
+        isOverdue: false,
+        isEscalated: false,
+        validationNote: "format-checked, not identity-verified"
+      }, references),
+      seedAcceptedRecord({
+        id: "VJTI-REC-003",
+        studentId: "VJTI-ENTC-003",
+        studentName: "Leela Menon",
+        apaarId: "900100200305",
+        programme: "Electronics & Telecommunication",
+        programmeCode: "ENTC",
+        yearOfStudy: "BE",
+        category: "GENERAL",
+        admissionDate: "2026-08-12",
+        gender: "Female",
+        status: "ACCEPTED",
+        issueType: null,
+        issueStatus: "RESOLVED",
+        reason: "Synthetic accepted demo record without consent.",
+        evidence: "Synthetic accepted demo record without consent.",
+        owner: "Central Repository",
+        requiredAction: "Consent required before external verification.",
+        dueDate: null,
+        isOverdue: false,
+        isEscalated: false,
+        validationNote: "format-checked, not identity-verified",
+        consentForExternalVerification: false
+      }, references),
+      seedAcceptedRecord({
+        id: "VJTI-REC-004",
+        studentId: "VJTI-AIDS-004",
+        studentName: "Omar Khan",
+        apaarId: "900100200306",
+        programme: "Artificial Intelligence & Data Science",
+        programmeCode: "AIDS",
+        yearOfStudy: "BE",
+        category: "GENERAL",
+        admissionDate: "2026-08-12",
+        gender: "Male",
+        status: "ACCEPTED",
+        issueType: null,
+        issueStatus: "RESOLVED",
+        reason: "Synthetic revoked demo record.",
+        evidence: "Synthetic revoked demo record.",
+        owner: "Central Repository",
+        requiredAction: "Do not use for verification.",
+        dueDate: null,
+        isOverdue: false,
+        isEscalated: false,
+        validationNote: "format-checked, not identity-verified",
+        revoked: true,
+        revokedAt: "2026-10-20T10:00:00Z",
+        revokedReason: "Synthetic demo revocation."
+      }, references)
+    ];
+  })()
 };

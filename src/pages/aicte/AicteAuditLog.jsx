@@ -113,6 +113,7 @@ export function AicteAuditLog() {
             <option value="ALL">All Actions</option>
             <option value="UNAUTHORIZED_ACCESS_ATTEMPT">Route Guard Violations</option>
             <option value="UNAUTHORIZED_REPORT_DOWNLOAD_ATTEMPT">Report Access Denied</option>
+            <option value="RECORD_VERIFICATION_REQUESTED">Record Verification Requests</option>
             <option value="AUTO_ESCALATION">Auto Escalation</option>
             <option value="RECORD_RESUBMIT">Record Resubmission</option>
             <option value="RECORDS_ACCEPTED">Batch Acceptance</option>

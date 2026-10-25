@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -15,15 +15,23 @@ import {
 import { collegeApi } from "../../api/collegeApi";
 import { STANDARD_COLUMNS } from "../../mocks/mockBatches";
 import { StatusBadge } from "../../components/StatusBadge";
+import { CollegeAddStudents } from "./CollegeAddStudents";
 
 export function CollegeUpload() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { refreshStats } = useOutletContext() || {};
 
   const [activeBatch, setActiveBatch] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [validationStage, setValidationStage] = useState(null); // 'PARSING', 'VALIDATING', 'DONE'
+  const [fileColumns, setFileColumns] = useState([]);
+  const [fileRows, setFileRows] = useState([]);
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const [mappingError, setMappingError] = useState("");
+  const [mappingBusy, setMappingBusy] = useState(false);
+  const entryMode = searchParams.get("mode") === "manual" ? "manual" : "upload";
 
   // Column mapping states
   const [mapping, setMapping] = useState({
@@ -33,6 +41,9 @@ export function CollegeUpload() {
     programme: "Degree & Programme",
     yearOfStudy: "Academic Year of Study",
     category: "Seat Category",
+    ociStatus: "OCI Status",
+    foreignNationalStatus: "Foreign National Status",
+    supernumerarySeats: "Supernumerary Seats",
     admissionDate: "Date of Admission"
   });
 
@@ -51,6 +62,72 @@ export function CollegeUpload() {
   useEffect(() => {
     loadCurrentBatch();
   }, []);
+
+  const parseCsv = (text) => {
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    if (!lines.length) throw new Error("The selected CSV is empty.");
+    const parseLine = (line) => line.split(",").map((value) => value.trim().replace(/^"|"$/g, ""));
+    const headers = parseLine(lines[0]);
+    if (headers.some((header) => !header)) throw new Error("The CSV header row contains an empty column.");
+    return { headers, rows: lines.slice(1).map(parseLine).filter((row) => row.some(Boolean)) };
+  };
+
+  const autoMap = (headers) => Object.fromEntries(STANDARD_COLUMNS.map((column) => {
+    const match = headers.find((header) => [column.label, column.key, ...column.aliases]
+      .some((alias) => alias.toLowerCase().replace(/[^a-z0-9]/g, "") === header.toLowerCase().replace(/[^a-z0-9]/g, "")));
+    return [column.key, match || ""];
+  }));
+
+  const handleFileSelected = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name)) {
+      setMappingError("Unsupported file type. Select a CSV file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = parseCsv(String(reader.result || ""));
+        setFileColumns(parsed.headers);
+        setFileRows(parsed.rows);
+        setMapping(autoMap(parsed.headers));
+        setSelectedFileName(file.name);
+        setMappingError("");
+      } catch (error) {
+        setMappingError(error.message);
+      }
+    };
+    reader.onerror = () => setMappingError("Unable to read the selected file.");
+    reader.readAsText(file);
+  };
+
+  const handleMappedUpload = async () => {
+    const required = ["studentId", "studentName", "apaarId", "programme", "yearOfStudy", "category"];
+    const missing = required.filter((key) => !mapping[key]);
+    const mapped = Object.values(mapping).filter(Boolean);
+    if (missing.length) {
+      setMappingError(`Map required fields before continuing: ${missing.join(", ")}.`);
+      return;
+    }
+    if (new Set(mapped).size !== mapped.length) {
+      setMappingError("Each file column can be mapped only once.");
+      return;
+    }
+    setMappingBusy(true);
+    try {
+      const indexes = Object.fromEntries(Object.entries(mapping).map(([key, value]) => [key, fileColumns.indexOf(value)]));
+      const records = fileRows.map((row) => Object.fromEntries(Object.entries(indexes).map(([key, index]) => [key, index >= 0 ? row[index] || "" : ""])));
+      await collegeApi.addStudentsToStaging(records, "BULK_UPLOAD");
+      await loadCurrentBatch();
+      setMappingError("");
+      navigate("/college/validate");
+    } catch (error) {
+      setMappingError(error.message || "Unable to stage the mapped records.");
+    } finally {
+      setMappingBusy(false);
+    }
+  };
 
   const handleLoadFaultyPreset = async () => {
     setIsUploading(true);
@@ -88,16 +165,16 @@ export function CollegeUpload() {
 
   const handleDownloadSampleCsv = () => {
     const csvContent = "data:text/csv;charset=utf-8," +
-      "PRN,Student Full Name,APAAR ID (12 Digits),Degree & Programme,Academic Year of Study,Seat Category,Date of Admission\n" +
-      "SE-COMP-001,Aarav Sharma,111122223333,Computer Engineering,SE,GENERAL,2026-08-01\n" +
-      "SE-COMP-012,Rajesh Sharma,,Computer Engineering,SE,GENERAL,2026-08-10\n" +
-      "SE-COMP-025,Ananya Patil,98234-ABCD,Computer Engineering,SE,OBC,2026-08-12\n" +
-      "SE-COMP-004,Vikram Joshi,234567890123,Computer Engineering,SE,GENERAL,2026-08-05\n" +
-      "SE-COMP-018,Sneha Roy,234567890123,Computer Engineering,SE,GENERAL,2026-08-11\n" +
-      "TE-IT-008,Rohan Kulkarni,345678901234,Information Technology,TE,GENERAL,2026-08-14\n" +
-      "FE-COMP-125,Arjun Deshmukh,456789012345,Computer Engineering,FE,GENERAL,2026-08-20\n" +
-      "SE-COMP-067,Tariq Al-Mansoor,567890123456,Computer Engineering,SE,NRI_FN,2026-08-18\n" +
-      "FE-AERO-001,Priya Nambiar,678901234567,B.Tech Aeronautical Engineering,FE,GENERAL,2026-08-16\n";
+      "PRN,Student Full Name,APAAR ID (12 Digits),Degree & Programme,Academic Year of Study,Seat Category,OCI Status,Foreign National Status,Supernumerary Seats,Date of Admission\n" +
+      "SE-COMP-001,Aarav Sharma,111122223333,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-01\n" +
+      "SE-COMP-012,Rajesh Sharma,,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-10\n" +
+      "SE-COMP-025,Ananya Patil,98234-ABCD,Computer Engineering,SE,OBC,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-12\n" +
+      "SE-COMP-004,Vikram Joshi,234567890123,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-05\n" +
+      "SE-COMP-018,Sneha Roy,234567890123,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-11\n" +
+      "TE-IT-008,Rohan Kulkarni,345678901234,Information Technology,TE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-14\n" +
+      "FE-COMP-125,Arjun Deshmukh,456789012345,Computer Engineering,FE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-20\n" +
+      "SE-COMP-067,Tariq Al-Mansoor,567890123456,Computer Engineering,SE,NRI_FN,NOT_RECORDED,NOT_RECORDED,1,2026-08-18\n" +
+      "FE-AERO-001,Priya Nambiar,678901234567,B.Tech Aeronautical Engineering,FE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-16\n";
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -121,10 +198,16 @@ export function CollegeUpload() {
           Batch Upload & Data Ingestion
         </h2>
         <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)", maxWidth: "840px" }}>
-          Colleges upload student admissions data via CSV. The platform standardizes column headers, runs automated rule-based checks against the AICTE Approval Master, and flags any anomalies for resolution.
+          Demo CSV ingestion and column mapping for student admissions data. The platform runs automated rule-based checks against synthetic AICTE Approval Master data; no live ERP connection is configured.
         </p>
       </div>
-
+      <div className="filter-bar" role="tablist" aria-label="Ingestion mode" style={{ marginBottom: "1.25rem" }}>
+        <button type="button" className={`btn ${entryMode === "upload" ? "btn-primary" : "btn-secondary"} btn-sm`} role="tab" aria-selected={entryMode === "upload"} onClick={() => setSearchParams({})}>Upload file</button>
+        <button type="button" className={`btn ${entryMode === "manual" ? "btn-primary" : "btn-secondary"} btn-sm`} role="tab" aria-selected={entryMode === "manual"} onClick={() => setSearchParams({ mode: "manual" })}>Add students manually</button>
+      </div>
+      {entryMode === "manual" ? <CollegeAddStudents /> : null}
+      {entryMode === "manual" ? null : (
+      <>
       {/* Grid: Upload Dropzone & Column Mapping Preview */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "1.75rem", marginBottom: "2rem" }}>
         {/* Dropzone Card */}
@@ -158,8 +241,9 @@ export function CollegeUpload() {
               marginBottom: "1.25rem",
               transition: "all 0.2s ease"
             }}
-            onClick={handleLoadFaultyPreset}
           >
+            <input type="file" accept=".csv,text/csv" onChange={handleFileSelected} style={{ display: "none" }} id="student-csv-file" />
+            <label htmlFor="student-csv-file" style={{ cursor: "pointer", display: "block" }}>
             <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "#EFF6FF", color: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem auto" }}>
               <UploadCloud size={26} />
             </div>
@@ -167,12 +251,27 @@ export function CollegeUpload() {
               Click to browse or drag & drop CSV file
             </h4>
             <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-              Supports .csv files with student PRN, Name, APAAR ID, Course, and Category.
+              CSV is supported in this prototype. Excel (.xls/.xlsx) upload is not yet available.
             </p>
             <span className="btn btn-secondary btn-sm" style={{ pointerEvents: "none" }}>
               Browse File from Computer
             </span>
+            </label>
           </div>
+          {mappingError && <div role="alert" style={{ color: "#991B1B", background: "#FEE2E2", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>{mappingError}</div>}
+          {selectedFileName && (
+            <div style={{ border: "1px solid var(--border-light)", borderRadius: "8px", padding: "1rem" }}>
+              <strong>{selectedFileName}</strong>
+              <div style={{ overflowX: "auto", marginTop: "0.75rem" }}>
+                <table className="data-table" aria-label="Column mapping">
+                  <thead><tr><th>Standard field</th><th>File column</th></tr></thead>
+                  <tbody>{STANDARD_COLUMNS.map((column) => <tr key={column.key}><td>{column.label}{["studentId", "studentName", "apaarId", "programme", "yearOfStudy", "category"].includes(column.key) ? " *" : ""}</td><td><select value={mapping[column.key] || ""} onChange={(event) => setMapping((current) => ({ ...current, [column.key]: event.target.value }))}><option value="">Not mapped</option>{fileColumns.map((header) => <option key={header} value={header}>{header}</option>)}</select></td></tr>)}</tbody>
+                </table>
+              </div>
+              <p>Preview: {fileRows.slice(0, 5).map((row, index) => <span key={index} style={{ display: "block", fontSize: "0.8rem" }}>{row.join(" | ")}</span>)}</p>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleMappedUpload} disabled={mappingBusy}>{mappingBusy ? "Staging..." : "Continue and stage mapped records"}</button>
+            </div>
+          )}
 
           {/* Quick Simulation Presets */}
           <div style={{ background: "#F1F5F9", borderRadius: "8px", padding: "1rem", border: "1px solid var(--border-light)" }}>
@@ -291,6 +390,8 @@ export function CollegeUpload() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
 
       {/* Current Active Batch Summary Banner */}

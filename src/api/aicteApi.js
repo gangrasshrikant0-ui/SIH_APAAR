@@ -6,6 +6,15 @@ import { getStoredBatches, saveBatch, getCurrentUser } from "../mocks/mockStore.
 import { getAuditLogs, logAuditEvent } from "../mocks/mockAuditLog.js";
 
 export const aicteApi = {
+  async getAcceptedRepository() {
+    await new Promise((res) => setTimeout(res, 80));
+    return Object.values(getStoredBatches()).flatMap((batch) =>
+      (batch.records || [])
+        .filter((record) => record.status === "ACCEPTED")
+        .map((record) => ({ ...record, batchId: batch.batchId, institutionName: batch.institutionName }))
+    );
+  },
+
   // AICTE National Dashboard Stats
   async getAicteDashboardStats(institutionFilter = "ALL") {
     await new Promise((res) => setTimeout(res, 80));
@@ -55,6 +64,7 @@ export const aicteApi = {
       return {
         ...inst,
         acceptedEnrolment: accepted,
+        actualEnrolment: records.filter((r) => r.status === "ACCEPTED").length,
         pendingReview,
         openAnomalies,
         escalatedCount,
@@ -73,6 +83,21 @@ export const aicteApi = {
     const totalOverdue = filtered.reduce((acc, curr) => acc + curr.overdueCount, 0);
     const totalOpen = filtered.reduce((acc, curr) => acc + curr.openAnomalies, 0);
     const overallUtilisation = totalApproved > 0 ? Math.round((totalAccepted / totalApproved) * 100) : 0;
+    const acceptedRecords = filtered.flatMap((institution) =>
+      (batches[institution.batchId]?.records || []).filter((record) => record.status === "ACCEPTED")
+    );
+    const uniqueStudents = new Set(acceptedRecords.map((record) => record.apaarId).filter(Boolean));
+    const activeInstitutionsByApaar = new Map();
+    Object.values(batches).forEach((batch) => {
+      (batch.records || []).forEach((record) => {
+        if (!record.apaarId || record.status === "REJECTED") return;
+        const institutions = activeInstitutionsByApaar.get(record.apaarId) || new Set();
+        institutions.add(batch.institutionId);
+        activeInstitutionsByApaar.set(record.apaarId, institutions);
+      });
+    });
+    const multipleActiveEnrolments = [...activeInstitutionsByApaar.values()]
+      .filter((institutions) => institutions.size > 1).length;
 
     return {
       totalApprovedSeats: totalApproved,
@@ -82,8 +107,42 @@ export const aicteApi = {
       totalEscalated,
       totalOverdue,
       totalOpenAnomalies: totalOpen,
+      totalAcceptedRecords: totalAccepted,
+      uniqueStudentsByApaar: uniqueStudents.size,
+      apaarIdsWithMultipleActiveEnrolments: multipleActiveEnrolments,
       institutions: filtered
     };
+  },
+
+  async getStudentJourney(apaarId) {
+    await new Promise((res) => setTimeout(res, 80));
+    const currentUser = getCurrentUser();
+    const normalized = apaarId.trim();
+    const records = Object.values(getStoredBatches()).flatMap((batch) =>
+      (batch.records || [])
+        .filter((record) => record.apaarId === normalized)
+        .map((record) => ({
+          ...record,
+          batchId: batch.batchId,
+          institutionId: batch.institutionId,
+          institutionName: batch.institutionName
+        }))
+    );
+    const activeInstitutions = new Set(
+      records.filter((record) => record.status !== "REJECTED").map((record) => record.institutionId)
+    );
+    logAuditEvent({
+      actorName: currentUser?.name || "AICTE Reviewer",
+      actorRole: currentUser?.role || "AICTE",
+      actorEmail: currentUser?.email || "aicte.central@gov.in",
+      actionType: "APAAR_LOOKUP",
+      resourceType: "APAAR_ID",
+      resourceId: normalized,
+      details: `APAAR lookup for ${normalized}. Institution: National (all AICTE institutions).`,
+      changeSummary: `${records.length} record(s) returned.`,
+      severity: "INFO"
+    });
+    return { records, hasActiveElsewhere: activeInstitutions.size > 1 };
   },
 
   // AICTE Review Queue: Escalated & Cross-Institution Cases across all institutions

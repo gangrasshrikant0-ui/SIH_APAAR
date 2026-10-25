@@ -62,19 +62,16 @@ export const DEMO_ACCOUNTS = {
     username: "aicte_officer",
     passwordHint: "demo123"
   },
-  STUDENT: {
-    role: "STUDENT",
-    id: "STU-001",
-    name: "Aarav Sharma",
-    title: "Enrolled Student",
-    apaarId: "111122223333",
-    studentId: "SE-COMP-001",
-    institutionName: "Pune Institute of Computer Technology (PICT)",
-    aicteId: "AICTE-1-1029384",
-    programme: "Computer Engineering (B.Tech)",
-    yearOfStudy: "SE",
-    email: "aarav.sharma@student.pict.edu",
-    demoOtp: "7492"
+  EXTERNAL_VERIFIER: {
+    role: "EXTERNAL_VERIFIER",
+    id: "VERIFIER-001",
+    name: "Meera Kapoor",
+    title: "Authorised External Verifier",
+    institutionName: "National Credential Review Office",
+    email: "verifier@credential-review.example",
+    avatar: "EV",
+    username: "external_verifier",
+    passwordHint: "demo123"
   }
 };
 
@@ -173,7 +170,40 @@ export function updatePrototypeSettings(newSettings) {
 export function getStoredBatches() {
   initializeStore();
   try {
-    return JSON.parse(storageAdapter.getItem(STORAGE_KEYS.BATCHES) || "{}");
+    const batches = JSON.parse(storageAdapter.getItem(STORAGE_KEYS.BATCHES) || "{}");
+    let changed = false;
+    Object.values(batches).forEach((batch) => {
+      const records = batch.records || [];
+      const actualEnrolment = records.filter((record) => record.status === "ACCEPTED").length;
+      const approvedIntake = batch.approvedIntake ?? (
+        batch.institutionId === "INST-002" ? 270 :
+        batch.institutionId === "INST-003" ? 120 : 420
+      );
+      if (batch.approvedIntake !== approvedIntake) {
+        batch.approvedIntake = approvedIntake;
+        changed = true;
+      }
+      if (batch.actualEnrolment !== actualEnrolment) {
+        batch.actualEnrolment = actualEnrolment;
+        changed = true;
+      }
+      batch.records = records.map((record) => {
+        const normalized = {
+          ...record,
+          ociStatus: record.ociStatus ?? (record.category === "NRI_FN" ? "NOT_RECORDED" : "NOT_APPLICABLE"),
+          foreignNationalStatus: record.foreignNationalStatus ?? (record.category === "NRI_FN" ? "NOT_RECORDED" : "NOT_APPLICABLE"),
+          supernumerarySeats: record.supernumerarySeats ?? (record.category === "NRI_FN" ? 1 : 0)
+        };
+        if (
+          normalized.ociStatus !== record.ociStatus ||
+          normalized.foreignNationalStatus !== record.foreignNationalStatus ||
+          normalized.supernumerarySeats !== record.supernumerarySeats
+        ) changed = true;
+        return normalized;
+      });
+    });
+    if (changed) storageAdapter.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(batches));
+    return batches;
   } catch (e) {
     return {};
   }

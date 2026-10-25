@@ -126,7 +126,7 @@ export function TopGovStrip() {
               <div style={{ background: "#F1F5F9", padding: "0.85rem", borderRadius: "8px", fontSize: "0.85rem" }}>
                 <strong>Key Principles:</strong>
                 <ul style={{ paddingLeft: "1.25rem", marginTop: "0.35rem" }}>
-                  <li>It does NOT replace college ERPs; colleges submit data via CSV or API.</li>
+                  <li>It does NOT replace college ERPs; CSV is available and API integration is planned, not connected.</li>
                   <li>It does NOT generate APAAR IDs (issued by central government).</li>
                   <li>It NEVER modifies the approved intake rulebook.</li>
                   <li>APAAR IDs are format-checked (12 digits), not identity-verified.</li>

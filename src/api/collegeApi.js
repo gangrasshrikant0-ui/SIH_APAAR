@@ -2,9 +2,11 @@
 // Simulates REST endpoint /api/v1/college/*
 
 import { APPROVAL_MASTER } from "../mocks/approvalMasterMock.js";
-import { FAULTY_MOCK_BATCH, CLEAN_MOCK_BATCH } from "../mocks/mockBatches.js";
-import { getActiveBatch, saveBatch, setActiveBatchId, getCurrentUser, simulateDaysPassing, getPrototypeSettings } from "../mocks/mockStore.js";
+import { FAULTY_MOCK_BATCH, CLEAN_MOCK_BATCH, generateRecordReference } from "../mocks/mockBatches.js";
+import { getActiveBatch, getStoredBatches, saveBatch, setActiveBatchId, getCurrentUser, simulateDaysPassing, getPrototypeSettings } from "../mocks/mockStore.js";
 import { logAuditEvent } from "../mocks/mockAuditLog.js";
+import { checkApaar } from "./apaarApi.js";
+import { createVerificationDigest } from "./verificationIntegrity.js";
 
 export const collegeApi = {
   // Get AICTE Approval Master for institution
@@ -21,6 +23,46 @@ export const collegeApi = {
   async getActiveBatch() {
     await new Promise((res) => setTimeout(res, 80));
     return getActiveBatch();
+  },
+
+  async getAcceptedRecords() {
+    await new Promise((res) => setTimeout(res, 80));
+    await repairStoredAcceptedRecords();
+    const batch = getActiveBatch();
+    const records = batch.records || [];
+    return records.filter((record) => record.status === "ACCEPTED");
+  },
+
+  async getStudentJourney(apaarId) {
+    await new Promise((res) => setTimeout(res, 80));
+    const currentUser = getCurrentUser();
+    const normalized = apaarId.trim();
+    const allMatches = Object.values(getStoredBatches()).flatMap((batch) =>
+      (batch.records || [])
+        .filter((record) => record.apaarId === normalized)
+        .map((record) => ({
+          ...record,
+          batchId: batch.batchId,
+          institutionId: batch.institutionId,
+          institutionName: batch.institutionName
+        }))
+    );
+    const ownRecords = allMatches.filter((record) => record.institutionId === currentUser?.id);
+    const hasActiveElsewhere = allMatches.some(
+      (record) => record.institutionId !== currentUser?.id && record.status !== "REJECTED"
+    );
+    logAuditEvent({
+      actorName: currentUser?.name || "College User",
+      actorRole: currentUser?.role || "COLLEGE",
+      actorEmail: currentUser?.email || "pict.admin@college.edu",
+      actionType: "APAAR_LOOKUP",
+      resourceType: "APAAR_ID",
+      resourceId: normalized,
+      details: `APAAR lookup for ${normalized}. Institution: ${currentUser?.institutionName || "Unknown"}.`,
+      changeSummary: `${ownRecords.length} record(s) returned.`,
+      severity: "INFO"
+    });
+    return { records: ownRecords, hasActiveElsewhere };
   },
 
   // Load standard demo batch (Faulty or Clean)
@@ -61,6 +103,9 @@ export const collegeApi = {
   async getIssues({ batchId, course, year, issueType, severity, status, search } = {}) {
     await new Promise((res) => setTimeout(res, 80));
     const batch = getActiveBatch();
+    if (batchId && batch.batchId !== batchId) {
+      return { records: [], batchId, batchStatus: "NOT_FOUND", totalRows: 0, flaggedCount: 0, readyCount: 0, acceptedCount: 0 };
+    }
     let records = [...(batch.records || [])];
 
     // Filter by Course
@@ -158,7 +203,7 @@ export const collegeApi = {
     }
 
     const currentRecord = batch.records[recordIndex];
-    const outcome = applyValidationChecks(currentRecord, batch.records, updatedFields);
+    const outcome = applyValidationChecks(currentRecord, batch.records, updatedFields, batch);
     const {
       validationPassed,
       newStatus,
@@ -198,9 +243,10 @@ export const collegeApi = {
       details: `Resubmitted record for ${currentRecord.studentName} (${newStudentId}). Automated revalidation result: ${newStatus}.`,
       changeSummary: validationPassed 
         ? `Status: ${currentRecord.status} -> READY_TO_ACCEPT. Anomaly resolved.`
-        : `Record remains unresolved (${newStatus}): ${newReason}`,
+        : `Record remains unresolved (${newStatus}): ${validatedFields.reason}`,
       severity: validationPassed ? "INFO" : "WARNING"
     });
+    logApaarCheckRun(currentUser, batch, [updatedRecord]);
 
     return {
       success: true,
@@ -221,13 +267,23 @@ export const collegeApi = {
   async acceptBatchRecords(batchId) {
     await new Promise((res) => setTimeout(res, 200));
     const batch = getActiveBatch();
+    const existingReferences = new Set(
+      Object.values(getStoredBatches()).flatMap((storedBatch) =>
+        (storedBatch.records || []).map((record) => record.recordReference).filter(Boolean)
+      )
+    );
     
     let newlyAcceptedCount = 0;
     batch.records = batch.records.map((r) => {
       if (r.status === "READY_TO_ACCEPT") {
         newlyAcceptedCount++;
+        const recordReference = r.recordReference || generateRecordReference(existingReferences);
+        existingReferences.add(recordReference);
         return {
           ...r,
+          recordReference,
+          consentForExternalVerification: r.consentForExternalVerification ?? true,
+          revoked: r.revoked ?? false,
           status: "ACCEPTED",
           issueStatus: "RESOLVED",
           acceptedAt: new Date().toISOString(),
@@ -246,8 +302,13 @@ export const collegeApi = {
     batch.flaggedRowsCount = remainingFlagged;
     batch.readyToAcceptCount = readyCount;
     batch.acceptedCount = totalAccepted;
+    batch.actualEnrolment = totalAccepted;
     batch.status = remainingFlagged === 0 ? "ACCEPTED" : "ACTION_REQUIRED";
 
+    for (const record of batch.records.filter((item) => item.status === "ACCEPTED")) {
+      record.verificationVersion = 1;
+      record.verificationDigest = await createVerificationDigest(record);
+    }
     saveBatch(batch);
 
     const currentUser = getCurrentUser();
@@ -356,6 +417,7 @@ export const collegeApi = {
       aicteId: "AICTE-1-1029384",
       approvedIntake,
       acceptedEnrolment: acceptedCount,
+      actualEnrolment: acceptedCount,
       readyToAccept: readyCount,
       utilisationPercentage: overallUtilisation,
       openAnomalies,
@@ -389,13 +451,13 @@ export const collegeApi = {
 
     const batch = getActiveBatch();
     const records = batch.records || [];
-    const headers = "Institution,Programme,Year,Approved Intake,Accepted Enrolment,Utilisation %,Category Counts\n";
+    const headers = "Institution,Programme,Year,Approved Intake,Actual Enrolment,Accepted Enrolment,Utilisation %,Category Counts,Supernumerary Seats\n";
     
     const rows = [
-      `"PICT Pune","Computer Engineering","2026-27",120,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'COMP').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'COMP').length / 120) * 100)}%","GEN/OBC/SC/ST/EWS/NRI"`,
-      `"PICT Pune","Information Technology","2026-27",120,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'IT').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'IT').length / 120) * 100)}%","GEN/OBC/SC/ST/EWS/NRI"`,
-      `"PICT Pune","Electronics & Telecom","2026-27",120,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'ENTC').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'ENTC').length / 120) * 100)}%","GEN/OBC/SC/ST/EWS/NRI"`,
-      `"PICT Pune","AI & Data Science","2026-27",60,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'AIDS').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'AIDS').length / 60) * 100)}%","GEN/OBC/SC/ST/EWS/NRI"`
+      `"PICT Pune","Computer Engineering","2026-27",120,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'COMP').length},${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'COMP').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'COMP').length / 120) * 100)}%","GEN/OBC/SC/ST/EWS/NRI",5`,
+      `"PICT Pune","Information Technology","2026-27",120,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'IT').length},${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'IT').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'IT').length / 120) * 100)}%","GEN/OBC/SC/ST/EWS/NRI",5`,
+      `"PICT Pune","Electronics & Telecom","2026-27",120,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'ENTC').length},${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'ENTC').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'ENTC').length / 120) * 100)}%","GEN/OBC/SC/ST/EWS/NRI",5`,
+      `"PICT Pune","AI & Data Science","2026-27",60,${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'AIDS').length},${records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'AIDS').length},"${Math.round((records.filter(r => r.status === 'ACCEPTED' && r.programmeCode === 'AIDS').length / 60) * 100)}%","GEN/OBC/SC/ST/EWS/NRI",3`
     ].join("\n");
 
     return headers + rows;
@@ -490,6 +552,9 @@ export const collegeApi = {
       programmeCode: _mapProgrammeCode(s.programme || ""),
       yearOfStudy: s.yearOfStudy || "FE",
       category: s.category || "GENERAL",
+      ociStatus: s.ociStatus || (s.category === "NRI_FN" ? "NOT_RECORDED" : "NOT_APPLICABLE"),
+      foreignNationalStatus: s.foreignNationalStatus || (s.category === "NRI_FN" ? "NOT_RECORDED" : "NOT_APPLICABLE"),
+      supernumerarySeats: Number(s.supernumerarySeats || (s.category === "NRI_FN" ? 1 : 0)),
       gender: s.gender || "",
       admissionDate: s.admissionDate || now.slice(0, 10),
       // Status before validation
@@ -601,7 +666,7 @@ export const collegeApi = {
       if (!toValidateIds.has(record.id)) return record;
 
       // Same 7-check engine as fixAndRevalidateRecord; selected set is the batch
-      const result = applyValidationChecks(record, toValidate, {});
+      const result = applyValidationChecks(record, toValidate, {}, batch);
       if (result.validationPassed) {
         passed++;
       } else {
@@ -619,6 +684,7 @@ export const collegeApi = {
     ).length;
     batch.readyToAcceptCount = updatedRecords.filter((r) => r.status === "READY_TO_ACCEPT").length;
     batch.acceptedCount = updatedRecords.filter((r) => r.status === "ACCEPTED").length;
+    batch.actualEnrolment = batch.acceptedCount;
     batch.status =
       batch.flaggedRowsCount > 0
         ? "ACTION_REQUIRED"
@@ -626,6 +692,9 @@ export const collegeApi = {
         ? "READY_TO_ACCEPT"
         : "ACCEPTED";
     saveBatch(batch);
+
+    const validatedRecords = batch.records.filter((r) => toValidateIds.has(r.id));
+    logApaarCheckRun(currentUser, batch, validatedRecords);
 
     logAuditEvent({
       actorName: currentUser?.name || "Dr. Arvind Kulkarni",
@@ -646,7 +715,7 @@ export const collegeApi = {
       flagged,
       blocking,
       warnings,
-      records: batch.records.filter((r) => toValidateIds.has(r.id))
+      records: validatedRecords
     };
   }
 };
@@ -663,13 +732,94 @@ function _mapProgrammeCode(programme) {
   return "OTHER";
 }
 
+function findRepositoryApaarConflict(apaarId, currentRecord, currentBatch) {
+  const batches = getStoredBatches();
+  for (const batch of Object.values(batches)) {
+    for (const record of batch.records || []) {
+      if (
+        record.id !== currentRecord.id &&
+        record.apaarId === apaarId &&
+        record.status !== "REVOKED" &&
+        batch.batchId !== currentBatch.batchId
+      ) {
+        return {
+          ...record,
+          institutionId: batch.institutionId,
+          institutionName: batch.institutionName,
+          conflictBatchId: batch.batchId
+        };
+      }
+
+    }
+  }
+  return null;
+}
+
+export async function repairStoredAcceptedRecords() {
+  const batches = getStoredBatches();
+  const existingReferences = new Set(
+    Object.values(batches).flatMap((batch) =>
+      (batch.records || []).map((record) => record.recordReference).filter(Boolean)
+    )
+  );
+  for (const batch of Object.values(batches)) {
+    let changed = false;
+    const records = [];
+    for (const record of batch.records || []) {
+      if (record.status !== "ACCEPTED") {
+        records.push(record);
+        continue;
+      }
+      let repaired = record;
+      if (!repaired.recordReference) {
+        const recordReference = generateRecordReference(existingReferences);
+        existingReferences.add(recordReference);
+        repaired = {
+          ...repaired,
+          recordReference,
+          consentForExternalVerification: repaired.consentForExternalVerification ?? true,
+          revoked: repaired.revoked ?? false,
+          verificationVersion: 1
+        };
+        changed = true;
+      }
+      if (!repaired.verificationDigest || repaired.verificationVersion !== 1) {
+        repaired = { ...repaired, verificationVersion: 1, verificationDigest: await createVerificationDigest({ ...repaired, verificationVersion: 1 }) };
+        changed = true;
+      }
+      records.push(repaired);
+    }
+    if (changed) saveBatch({ ...batch, records });
+  }
+}
+
+function logApaarCheckRun(currentUser, batch, records) {
+  const counts = records.reduce((result, record) => {
+    if (record.apaarCheck) result[record.apaarCheck] += 1;
+    return result;
+  }, { FOUND: 0, NOT_FOUND: 0, NAME_MISMATCH: 0 });
+  logAuditEvent({
+    actorName: currentUser?.name || "College User",
+    actorRole: currentUser?.role || "COLLEGE",
+    actorEmail: currentUser?.email || "pict.admin@college.edu",
+    actionType: "APAAR_CHECK_RUN",
+    resourceType: "BATCH",
+    resourceId: batch.batchId,
+    details: `SIMULATED APAAR authenticity check for ${records.length} record(s) at ${batch.institutionName || "institution"}. FOUND: ${counts.FOUND}, NOT_FOUND: ${counts.NOT_FOUND}, NAME_MISMATCH: ${counts.NAME_MISMATCH}.`,
+    changeSummary: "Format-valid APAAR IDs remain format-checked, not identity-verified.",
+    severity: counts.NOT_FOUND || counts.NAME_MISMATCH ? "WARNING" : "INFO"
+  });
+}
+
 // Shared 7-check engine used by fixAndRevalidateRecord and validateStagedRecords.
 // comparisonRecords is the set treated as one batch for duplicate-in-batch.
-function applyValidationChecks(currentRecord, comparisonRecords, updatedFields = {}) {
+function applyValidationChecks(currentRecord, comparisonRecords, updatedFields = {}, currentBatch) {
   const newApaar = updatedFields.apaarId !== undefined ? updatedFields.apaarId.trim() : currentRecord.apaarId;
   const newStudentId = updatedFields.studentId !== undefined ? updatedFields.studentId.trim() : currentRecord.studentId;
+  const newStudentName = updatedFields.studentName !== undefined ? updatedFields.studentName.trim() : currentRecord.studentName;
   const newProgramme = updatedFields.programme !== undefined ? updatedFields.programme : currentRecord.programme;
   const newCategory = updatedFields.category !== undefined ? updatedFields.category : currentRecord.category;
+  const newSupernumerarySeats = Number(updatedFields.supernumerarySeats !== undefined ? updatedFields.supernumerarySeats : currentRecord.supernumerarySeats || 0);
   const newYearOfStudy = updatedFields.yearOfStudy !== undefined ? updatedFields.yearOfStudy : currentRecord.yearOfStudy;
   const transferProof = updatedFields.transferProof;
 
@@ -684,6 +834,7 @@ function applyValidationChecks(currentRecord, comparisonRecords, updatedFields =
   let newOwner = "System Auto-Validator";
   let isOverdue = false;
   let isEscalated = false;
+  const apaarCheck = /^\d{12}$/.test(newApaar) ? checkApaar(newApaar, newStudentName) : null;
 
   // Check 1: Empty APAAR
   if (!newApaar) {
@@ -725,7 +876,36 @@ function applyValidationChecks(currentRecord, comparisonRecords, updatedFields =
     }
   }
 
-  // Check 4: Unapproved course mapping (e.g. Aeronautical)
+  // Check 4: Repository-wide duplicate, including another institution.
+  if (validationPassed && currentBatch) {
+    const repositoryConflict = findRepositoryApaarConflict(newApaar, currentRecord, currentBatch);
+    if (repositoryConflict) {
+      validationPassed = false;
+      newStatus = repositoryConflict.institutionId === currentBatch.institutionId
+        ? "ACTION_REQUIRED"
+        : "PENDING_REVIEW";
+      newIssueStatus = "OPEN";
+      newIssueType = repositoryConflict.institutionId === currentBatch.institutionId
+        ? "DUPLICATE_IN_REPOSITORY"
+        : "CROSS_INSTITUTION_CONFLICT";
+      newReason = repositoryConflict.institutionId === currentBatch.institutionId
+        ? `APAAR '${newApaar}' already exists in this institution's central repository.`
+        : `Cross-institution conflict: APAAR '${newApaar}' is active at ${currentBatch.institutionName || "this institution"} and ${repositoryConflict.institutionName || "another institution"}. Flagged for review, not fraud.`;
+      newEvidence = repositoryConflict.institutionId === currentBatch.institutionId
+        ? `Conflicts with repository record ${repositoryConflict.id}.`
+        : `${currentBatch.institutionName || "This institution"}: ${newProgramme}, ${newYearOfStudy}; ${repositoryConflict.institutionName || "Other institution"}: ${repositoryConflict.programme}, ${repositoryConflict.yearOfStudy}. Both active enrolments require review.`;
+      newAction = repositoryConflict.institutionId === currentBatch.institutionId
+        ? "Resolve the existing repository record before accepting this student."
+        : "AICTE Reviewer must adjudicate transfer or withdrawal evidence.";
+      newSeverity = "HIGH";
+      newOwner = repositoryConflict.institutionId === currentBatch.institutionId
+        ? "Institution Data Officer"
+        : "AICTE Central Reviewer";
+      isEscalated = repositoryConflict.institutionId !== currentBatch.institutionId;
+    }
+  }
+
+  // Check 5: Unapproved course mapping (e.g. Aeronautical)
   if (validationPassed && (newProgramme.toLowerCase().includes("aero") || newProgramme.toLowerCase().includes("aviation"))) {
     validationPassed = false;
     newStatus = "ACTION_REQUIRED";
@@ -801,16 +981,45 @@ function applyValidationChecks(currentRecord, comparisonRecords, updatedFields =
     newSeverity = "MEDIUM";
   }
 
+  if (validationPassed && newCategory === "NRI_FN" && newSupernumerarySeats > 5) {
+    validationPassed = false;
+    newStatus = "ACTION_REQUIRED";
+    newIssueStatus = "OPEN";
+    newIssueType = "SEAT_CATEGORY_LIMIT";
+    newReason = "Supernumerary NRI/FN allocation exceeds the approved limit of 5 seats.";
+    newEvidence = `Requested supernumerary seats: ${newSupernumerarySeats}. Approved NRI/FN limit: 5.`;
+    newAction = "Reduce the allocation or upload an approved supernumerary sanction.";
+    newSeverity = "MEDIUM";
+    newOwner = "Admissions Officer";
+  }
+
+  if (validationPassed && apaarCheck !== "FOUND") {
+    validationPassed = false;
+    newStatus = "PENDING_REVIEW";
+    newIssueStatus = "OPEN";
+    newIssueType = "APAAR_AUTHENTICITY_REVIEW";
+    newReason = `APAAR check (simulated): ${apaarCheck}. Flagged for review, not identity-verified.`;
+    newEvidence = `APAAR check (simulated): ${apaarCheck}.`;
+    newAction = "AICTE Reviewer must review the APAAR authenticity result.";
+    newSeverity = "HIGH";
+    newOwner = "AICTE Central Reviewer";
+    isEscalated = true;
+  }
+
   return {
     validationPassed,
     newStatus,
     newStudentId,
     updatedRecord: {
       apaarId: newApaar,
+      apaarCheck,
       studentId: newStudentId,
       programme: newProgramme,
       programmeCode: newProgramme.toUpperCase().includes("COMP") ? "COMP" : (newProgramme.toUpperCase().includes("IT") ? "IT" : "OTHER"),
       category: newCategory,
+      ociStatus: updatedFields.ociStatus !== undefined ? updatedFields.ociStatus : currentRecord.ociStatus,
+      foreignNationalStatus: updatedFields.foreignNationalStatus !== undefined ? updatedFields.foreignNationalStatus : currentRecord.foreignNationalStatus,
+      supernumerarySeats: newSupernumerarySeats,
       yearOfStudy: newYearOfStudy,
       status: newStatus,
       issueStatus: newIssueStatus,

@@ -24,6 +24,9 @@ export function createEmptyStudent() {
     programme: "Computer Engineering",
     yearOfStudy: "FE",
     category: "GENERAL",
+    ociStatus: "NOT_APPLICABLE",
+    foreignNationalStatus: "NOT_APPLICABLE",
+    supernumerarySeats: 0,
     gender: "",
     admissionDate: ""
   };

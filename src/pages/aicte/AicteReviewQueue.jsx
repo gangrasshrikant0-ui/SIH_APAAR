@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ShieldCheck,
   Search,
@@ -30,6 +31,7 @@ const ISSUE_TYPE_OPTIONS = [
   { value: "INVALID_APAAR_FORMAT", label: "Invalid APAAR Format" },
   { value: "MISSING_APAAR", label: "Missing APAAR" },
   { value: "PRN_DUPLICATE", label: "PRN Duplicate" },
+  { value: "DUPLICATE_IN_REPOSITORY", label: "Duplicate in Repository" },
   { value: "CROSS_INSTITUTION_CONFLICT", label: "Cross-Institution Conflict" },
   { value: "EXCESS_INTAKE", label: "Excess Intake" },
   { value: "CATEGORY_MISMATCH", label: "Category Mismatch" },
@@ -45,6 +47,7 @@ const STATUS_OPTIONS = [
 
 const SEVER_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 const SORTABLE = ["studentName", "institutionName", "severity", "issueType", "status", "dueDate"];
+const PAGE_SIZE = 10;
 
 function issueLabel(val) {
   return ISSUE_TYPE_OPTIONS.find((o) => o.value === val)?.label ?? val ?? "—";
@@ -281,6 +284,7 @@ function AicteCaseTable({ items, selectedId, onSelect, sortCol, sortDir, onSort 
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function AicteReviewQueue() {
+  const [searchParams] = useSearchParams();
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCaseId, setSelectedCaseId] = useState(null);
@@ -288,9 +292,10 @@ export function AicteReviewQueue() {
   const [actionSuccessMsg, setActionSuccessMsg] = useState("");
   const [simulatingEscalation, setSimulatingEscalation] = useState(false);
   const [processingId, setProcessingId] = useState(null);
+  const [page, setPage] = useState(1);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [institutionFilter, setInstitutionFilter] = useState("ALL");
+  const [institutionFilter, setInstitutionFilter] = useState(searchParams.get("institution") || "ALL");
   const [issueTypeFilter, setIssueTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [sortCol, setSortCol] = useState("severity");
@@ -309,6 +314,7 @@ export function AicteReviewQueue() {
   }, [institutionFilter, issueTypeFilter, searchQuery]);
 
   useEffect(() => { loadQueue(); }, [loadQueue]);
+  useEffect(() => { setPage(1); }, [institutionFilter, issueTypeFilter, statusFilter, searchQuery]);
 
   const filteredQueue = queue
     .filter((item) => {
@@ -325,6 +331,9 @@ export function AicteReviewQueue() {
     });
 
   const selectedCase = filteredQueue.find((i) => i.id === selectedCaseId) ?? null;
+  const totalPages = Math.max(1, Math.ceil(filteredQueue.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleQueue = filteredQueue.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleConfirmEvidence = async (item) => {
     setProcessingId(item.id);
@@ -395,16 +404,6 @@ export function AicteReviewQueue() {
         </button>
       </div>
 
-      {/* Statutory limit notice */}
-      <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: "8px", padding: "0.8rem 1rem", marginBottom: "1.25rem", fontSize: "0.8125rem", color: "#1E40AF", display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
-        <Info size={16} style={{ flexShrink: 0, marginTop: "1px", color: "#2563EB" }} />
-        <span>
-          <strong>Statutory Limit:</strong> This platform finds problems and tracks their fixing.{" "}
-          <em>It never edits approved intake, never generates APAAR IDs, and never grants AICTE exceptions itself.</em>{" "}
-          Cross-institution duplicates are flagged for review, not labeled fraud.
-        </span>
-      </div>
-
       {/* Toast */}
       {actionSuccessMsg && (
         <div role="status" aria-live="polite" style={{ background: "#DCFCE7", border: "1px solid #86EFAC", color: "#166534", padding: "0.75rem 1rem", borderRadius: "8px", marginBottom: "1.25rem", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -429,6 +428,7 @@ export function AicteReviewQueue() {
             <option value="INST-002">COEP Tech (AICTE-1-1099231)</option>
             <option value="INST-003">VJTI Mumbai (AICTE-1-1088421)</option>
           </select>
+          {institutionFilter !== "ALL" && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setInstitutionFilter("ALL")}>Clear institution filter</button>}
         </div>
         <div className="filter-group" style={{ flex: "1 1 180px" }}>
           <label className="filter-label" htmlFor="wrk-issue">Issue Type</label>
@@ -447,7 +447,7 @@ export function AicteReviewQueue() {
             <Filter size={13} /><span>Clear</span>
           </button>
           <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)", whiteSpace: "nowrap", fontWeight: 600 }}>
-            {loading ? "Loading..." : filteredQueue.length + " case" + (filteredQueue.length !== 1 ? "s" : "")}
+            {loading ? "Loading..." :             filteredQueue.length + " case" + (filteredQueue.length !== 1 ? "s" : "") + ` · Page ${currentPage} of ${totalPages}`}
           </span>
         </div>
       </div>
@@ -471,7 +471,7 @@ export function AicteReviewQueue() {
         </div>
       ) : (
         <AicteCaseTable
-          items={filteredQueue}
+          items={visibleQueue}
           selectedId={selectedCaseId}
           onSelect={(item) => setSelectedCaseId(item.id)}
           sortCol={sortCol}
@@ -481,6 +481,12 @@ export function AicteReviewQueue() {
             else { setSortCol(col); setSortDir("asc"); }
           }}
         />
+      )}
+      {filteredQueue.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginTop: "1rem" }}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</button>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>Next</button>
+        </div>
       )}
 
       {/* Detail drawer */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useOutletContext, Link } from "react-router-dom";
+import { useOutletContext, Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   Search,
@@ -20,6 +20,8 @@ import { FixRecordModal } from "../../components/FixRecordModal";
 
 export function CollegeWorkbench() {
   const { refreshStats } = useOutletContext() || {};
+  const [searchParams] = useSearchParams();
+  const requestedBatchId = searchParams.get("batch") || "";
 
   const [records, setRecords] = useState([]);
   const [batchInfo, setBatchInfo] = useState(null);
@@ -44,6 +46,7 @@ export function CollegeWorkbench() {
     setIsLoading(true);
     try {
       const data = await collegeApi.getIssues({
+        batchId: requestedBatchId || undefined,
         course: courseFilter,
         year: yearFilter,
         issueType: issueTypeFilter,
@@ -69,7 +72,7 @@ export function CollegeWorkbench() {
 
   useEffect(() => {
     loadIssues();
-  }, [courseFilter, yearFilter, issueTypeFilter, severityFilter, statusFilter, searchQuery]);
+  }, [courseFilter, yearFilter, issueTypeFilter, severityFilter, statusFilter, searchQuery, requestedBatchId]);
 
   const handleRecordFixed = (updatedRecord) => {
     setActionSuccessMsg(`Record for ${updatedRecord.studentName} (${updatedRecord.studentId}) successfully revalidated: Status is now ${updatedRecord.status}!`);
@@ -184,7 +187,7 @@ export function CollegeWorkbench() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <Info size={16} style={{ color: "#16A34A", flexShrink: 0 }} />
           <span>
-            <strong>SIH 2026 Correction Rule:</strong> Sorted by highest-impact (errors before warnings, then overdue). Invalid rows are never counted as accepted. Near any APAAR ID check, IDs are format-checked, not identity-verified. Cross-institution conflicts are flagged for review, never fraud.
+            Issues are sorted by severity and due date.
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -273,6 +276,7 @@ export function CollegeWorkbench() {
             <option value="MISSING_APAAR_ID">Missing APAAR ID</option>
             <option value="WRONG_FORMAT">Wrong 12-digit Format</option>
             <option value="DUPLICATE_IN_BATCH">Duplicate in Batch</option>
+            <option value="DUPLICATE_IN_REPOSITORY">Duplicate in Repository</option>
             <option value="CROSS_INSTITUTION_CONFLICT">Cross-Institution Conflict</option>
             <option value="INTAKE_EXCEEDED">Intake Exceeded</option>
             <option value="SEAT_CATEGORY_LIMIT">NRI/FN Quota Exceeded</option>

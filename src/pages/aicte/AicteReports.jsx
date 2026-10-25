@@ -303,6 +303,9 @@ function AuditTrailView() {
             <option value="UNAUTHORIZED_ACCESS_ATTEMPT">Route Guard Violations</option>
             <option value="UNAUTHORIZED_REPORT_DOWNLOAD_ATTEMPT">Report Access Denied</option>
             <option value="REPORT_DOWNLOADED">Report Downloads</option>
+            <option value="RECORD_VERIFICATION_REQUESTED">Record Verification Requests</option>
+            <option value="APAAR_LOOKUP">APAAR Lookups</option>
+            <option value="APAAR_CHECK_RUN">Simulated APAAR Checks</option>
             <option value="AUTO_ESCALATION">Auto Escalation</option>
             <option value="RECORD_RESUBMIT">Record Resubmission</option>
             <option value="RECORDS_ACCEPTED">Batch Acceptance</option>
@@ -989,6 +992,7 @@ export function AicteReports() {
           </div>
         </Link>
       </div>
+
     </div>
   );
 }

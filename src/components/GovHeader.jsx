@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShieldCheck, LogOut, Menu, X, RotateCcw, Building2, UserCheck, GraduationCap } from "lucide-react";
+import { ShieldCheck, LogOut, Menu, X, RotateCcw, Building2, UserCheck } from "lucide-react";
 import { getCurrentUser, setCurrentUser, resetDemoState } from "../mocks/mockStore";
 
 export function GovHeader() {
@@ -39,11 +39,11 @@ export function GovHeader() {
         </span>
       );
     }
-    if (currentUser.role === "STUDENT") {
+    if (currentUser.role === "EXTERNAL_VERIFIER") {
       return (
-        <span className="user-role-badge student">
-          <GraduationCap size={14} />
-          <span>Student: {currentUser.name}</span>
+        <span className="user-role-badge verifier">
+          <UserCheck size={14} />
+          <span>External Verifier</span>
         </span>
       );
     }
@@ -90,8 +90,8 @@ export function GovHeader() {
               </a>
             </li>
             <li>
-              <Link to="/verify/demo-mode" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
-                Public Verify
+              <Link to="/external/verify" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
+                Verify a Record
               </Link>
             </li>
           </ul>
@@ -114,9 +114,9 @@ export function GovHeader() {
                   AICTE Portal
                 </Link>
               )}
-              {currentUser.role === "STUDENT" && (
-                <Link to="/student/record" className="btn btn-secondary btn-sm" title="Go to Student Record">
-                  My Record
+              {currentUser.role === "EXTERNAL_VERIFIER" && (
+                <Link to="/external/verify" className="btn btn-secondary btn-sm" title="Verify one record">
+                  Verify a Record
                 </Link>
               )}
 

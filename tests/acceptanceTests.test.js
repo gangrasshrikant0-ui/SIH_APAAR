@@ -4,9 +4,13 @@ import assert from "node:assert/strict";
 // Import APIs & Mocks
 import { APPROVAL_MASTER } from "../src/mocks/approvalMasterMock.js";
 import { FAULTY_MOCK_BATCH } from "../src/mocks/mockBatches.js";
-import { initializeStore, resetDemoState, setCurrentUser, DEMO_ACCOUNTS } from "../src/mocks/mockStore.js";
+import { initializeStore, resetDemoState, setCurrentUser, setActiveBatchId, getStoredBatches, saveBatch, DEMO_ACCOUNTS } from "../src/mocks/mockStore.js";
 import { collegeApi } from "../src/api/collegeApi.js";
 import { aicteApi } from "../src/api/aicteApi.js";
+import { authApi } from "../src/api/authApi.js";
+import { verificationApi } from "../src/api/verificationApi.js";
+import { checkApaar } from "../src/api/apaarApi.js";
+import { repairStoredAcceptedRecords } from "../src/api/collegeApi.js";
 import { getAuditLogs } from "../src/mocks/mockAuditLog.js";
 import {
   COLLEGE_DEFAULT_PATH,
@@ -75,6 +79,10 @@ test("Acceptance Test 2: A mixed valid/invalid batch: invalid rows are not count
   // Dashboard reflects only accepted rows
   const stats = await collegeApi.getDashboardStats();
   assert.equal(stats.acceptedEnrolment, initialReadyCount, "Dashboard accepted count must only include valid accepted rows");
+
+  const certificateRecords = await collegeApi.getAcceptedRecords();
+  assert.equal(certificateRecords.length, initialReadyCount, "Certificate source must include accepted records only");
+  assert.ok(certificateRecords.every((record) => record.studentId && record.apaarId), "Accepted certificate records must include both identifiers");
 });
 
 test("Acceptance Test 3: Overdue issue escalates to the AICTE reviewer", async () => {
@@ -165,15 +173,15 @@ test("College tab order and default route: Intake Dashboard is first", () => {
     COLLEGE_PORTAL_TABS.map((t) => `${t.n}. ${t.label}`),
     [
       "1. Intake Dashboard",
-      "2. Add Students",
-      "3. Batch Upload & Ingestion",
-      "4. Validate Records",
-      "5. Issue Workbench",
-      "6. Compliance Reports"
+      "2. Batch Upload & Ingestion",
+      "3. Validate Records",
+      "4. Issue Workbench",
+      "5. Compliance Reports",
+      "6. Student Journey"
     ]
   );
   assert.equal(COLLEGE_PORTAL_TABS[0].to, "/college/dashboard");
-  assert.equal(COLLEGE_PORTAL_TABS[2].to, "/college/upload");
+  assert.equal(COLLEGE_PORTAL_TABS[1].to, "/college/upload");
 });
 
 test("Old college routes still resolve or redirect to the new location", () => {
@@ -294,6 +302,30 @@ test("Validate selected reuses engine: pass, 11-digit APAAR, duplicate in batch,
   assert.ok(valid.addedCount && badApaar.addedCount && dups.addedCount && aero.addedCount);
 });
 
+test("APAAR repository checks flag same-institution and cross-institution conflicts", async () => {
+  const cleanBatch = await collegeApi.loadPresetBatch("CLEAN");
+  const duplicate = await collegeApi.addStudentsToStaging([{
+    studentId: "FE-COMP-902",
+    studentName: "Repository Duplicate",
+    apaarId: "111122223333",
+    programme: "Computer Engineering",
+    yearOfStudy: "FE",
+    category: "GENERAL"
+  }], "MANUAL_ENTRY");
+  const staged = await collegeApi.getStagedRecords({ source: "MANUAL_ENTRY", search: "FE-COMP-902" });
+  const duplicateResult = await collegeApi.validateStagedRecords([staged.records[0].id]);
+  assert.equal(duplicateResult.records[0].issueType, "DUPLICATE_IN_REPOSITORY");
+  assert.equal(duplicateResult.records[0].status, "ACTION_REQUIRED");
+
+  setCurrentUser(DEMO_ACCOUNTS.AICTE);
+  setActiveBatchId("BATCH-2026-COEP-0101");
+  const crossInstitutionResult = await collegeApi.validateStagedRecords(["COEP-REC-001"]);
+  assert.equal(crossInstitutionResult.records[0].issueType, "CROSS_INSTITUTION_CONFLICT");
+  assert.equal(crossInstitutionResult.records[0].status, "PENDING_REVIEW");
+  assert.equal(cleanBatch.batchId, "BATCH-2026-ENG-CLEAN-01");
+  assert.ok(duplicate.addedCount);
+});
+
 test("College cannot add records for another institution", async () => {
   let denied = false;
   try {
@@ -311,4 +343,142 @@ test("College cannot add records for another institution", async () => {
   assert.equal(denied, true);
   const audit = getAuditLogs().find((l) => l.actionType === "UNAUTHORIZED_ACCESS_ATTEMPT" && l.resourceType === "STAGING_AREA");
   assert.ok(audit);
+});
+
+test("External verifier role logs in and exact-reference verification exposes only permitted valid fields", async () => {
+  const login = await authApi.login({
+    role: "EXTERNAL_VERIFIER",
+    identifier: DEMO_ACCOUNTS.EXTERNAL_VERIFIER.email,
+    password: DEMO_ACCOUNTS.EXTERNAL_VERIFIER.passwordHint
+  });
+  assert.equal(login.user.role, "EXTERNAL_VERIFIER");
+
+  const acceptedRecords = getStoredBatches()["BATCH-2026-VJTI-0202"].records;
+  const validReference = acceptedRecords[0].recordReference;
+  const result = await verificationApi.verifyToken(` ${validReference.toLowerCase()} `, { purpose: "Employment check" });
+  assert.deepEqual(result, {
+    status: "VALID",
+    studentName: "Nisha Rao",
+    apaarId: "9001 0020 0303",
+    institutionName: "Veermata Jijabai Technological Institute (VJTI Mumbai)",
+    programme: "Computer Engineering",
+    academicYear: "2026-2027",
+    recordStatus: "ACCEPTED"
+  });
+  assert.equal(result.studentId, undefined);
+  assert.equal(getAuditLogs().find((log) =>
+    log.actionType === "RECORD_VERIFICATION_REQUESTED" &&
+    log.resourceId === validReference
+  )?.details.includes("Employment check"), true);
+  assert.equal((await verificationApi.verifyToken("900100200303", { purpose: "Regulatory check" })).status, "NOT_FOUND");
+  assert.equal((await verificationApi.verifyToken("Nisha Rao", { purpose: "Regulatory check" })).status, "NOT_FOUND");
+  assert.equal((await verificationApi.verifyToken("VJTI-REC-001", { purpose: "Regulatory check" })).status, "NOT_FOUND");
+});
+
+test("External verifier never receives student details for missing, revoked, or consent-missing records", async () => {
+  setCurrentUser(DEMO_ACCOUNTS.EXTERNAL_VERIFIER);
+  const seededRecords = getStoredBatches()["BATCH-2026-VJTI-0202"].records;
+  const revokedReference = seededRecords[3].recordReference;
+  const noConsentReference = seededRecords[2].recordReference;
+  const results = await Promise.all([
+    verificationApi.verifyToken("unknown-reference", { purpose: "Regulatory check" }),
+    verificationApi.verifyToken(revokedReference, { purpose: "Regulatory check" }),
+    verificationApi.verifyToken(noConsentReference, { purpose: "Regulatory check" })
+  ]);
+
+  assert.deepEqual(results.map((result) => result.status), ["NOT_FOUND", "REVOKED", "CONSENT_MISSING"]);
+  results.forEach((result) => {
+    assert.equal(result.studentName, undefined);
+    assert.equal(result.institutionName, undefined);
+    assert.equal(result.apaarId, undefined);
+  });
+  const history = verificationApi.getVerificationHistory();
+  assert.ok(history.some((entry) => entry.reference === "UNKNOWN-REFERENCE" && entry.result === "NOT_FOUND"));
+  assert.ok(history.every((entry) => entry.verifierId === DEMO_ACCOUNTS.EXTERNAL_VERIFIER.id));
+});
+
+test("Accepted records have unique references and non-accepted records do not", async () => {
+  const batches = getStoredBatches();
+  const records = Object.values(batches).flatMap((batch) => batch.records || []);
+  const accepted = records.filter((record) => record.status === "ACCEPTED");
+  const references = accepted.map((record) => record.recordReference);
+  assert.ok(accepted.length >= 3);
+  assert.equal(new Set(references).size, references.length);
+  assert.ok(references.every((reference) => /^APR-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(reference)));
+  assert.ok(records.filter((record) => record.status !== "ACCEPTED" && !record.revoked).every((record) => !record.recordReference));
+});
+
+test("APAAR journey is scoped for College and complete for AICTE", async () => {
+  const collegeJourney = await collegeApi.getStudentJourney("345678901234");
+  assert.equal(collegeJourney.records.length, 1);
+  assert.equal(collegeJourney.records[0].institutionId, "INST-001");
+  assert.equal(collegeJourney.hasActiveElsewhere, true);
+
+  setCurrentUser(DEMO_ACCOUNTS.AICTE);
+  const aicteJourney = await aicteApi.getStudentJourney("345678901234");
+  assert.equal(aicteJourney.records.length, 2);
+  assert.equal(aicteJourney.hasActiveElsewhere, true);
+  assert.ok(getAuditLogs().some((log) => log.actionType === "APAAR_LOOKUP"));
+});
+
+test("Simulated APAAR check returns all three documented outcomes", () => {
+  assert.equal(checkApaar("345678901234", "Rohan Kulkarni"), "NAME_MISMATCH");
+  assert.equal(checkApaar("345678901234", "Rohan Kulkarny"), "FOUND");
+  assert.equal(checkApaar("777788889999", "Absent Student"), "NOT_FOUND");
+});
+
+test("Simulated APAAR failures create a pending review without marking identity verified", async () => {
+  const result = await collegeApi.fixAndRevalidateRecord("BATCH-2026-ENG-0402", "REC-009", {
+    apaarId: "777788889999"
+  });
+  assert.equal(result.record.apaarCheck, "NOT_FOUND");
+  assert.equal(result.record.status, "PENDING_REVIEW");
+  assert.equal(result.record.issueType, "APAAR_AUTHENTICITY_REVIEW");
+  assert.ok(getAuditLogs().some((log) => log.actionType === "APAAR_CHECK_RUN"));
+});
+
+test("National dashboard exposes accepted, unique and multi-enrolment APAAR counts", async () => {
+  const stats = await aicteApi.getAicteDashboardStats("ALL");
+  assert.ok(stats.totalAcceptedRecords >= stats.uniqueStudentsByApaar);
+  assert.equal(stats.apaarIdsWithMultipleActiveEnrolments, 1);
+  assert.equal(stats.totalAcceptedRecords, stats.totalAcceptedEnrolment);
+});
+
+test("Accepted records across stored batches receive stable integrity metadata", async () => {
+  await repairStoredAcceptedRecords();
+  const records = Object.values(getStoredBatches()).flatMap((batch) => batch.records || [])
+    .filter((record) => record.status === "ACCEPTED");
+  assert.ok(records.length > 0);
+  assert.ok(records.every((record) =>
+    record.recordReference &&
+    record.verificationVersion === 1 &&
+    /^[a-f0-9]{64}$/.test(record.verificationDigest)
+  ));
+});
+
+test("Tampered verification metadata cannot produce a VALID result", async () => {
+  const batch = getStoredBatches()["BATCH-2026-VJTI-0202"];
+  const record = batch.records[0];
+  const reference = record.recordReference;
+  record.verificationDigest = "0".repeat(64);
+  saveBatch(batch);
+  const result = await verificationApi.verifyToken(reference, { purpose: "Employment check" });
+  assert.equal(result.status, "NOT_FOUND");
+});
+
+test("Accepted records loaded without a reference receive one that stays stable", async () => {
+  const batch = getStoredBatches()["BATCH-2026-ENG-0402"];
+  const aarav = batch.records.find((record) => record.studentName === "Aarav Sharma");
+  aarav.status = "ACCEPTED";
+  delete aarav.recordReference;
+  setActiveBatchId(batch.batchId);
+  saveBatch(batch);
+
+  const firstLoad = await collegeApi.getAcceptedRecords();
+  const firstReference = firstLoad.find((record) => record.studentName === "Aarav Sharma").recordReference;
+  const secondLoad = await collegeApi.getAcceptedRecords();
+  const secondReference = secondLoad.find((record) => record.studentName === "Aarav Sharma").recordReference;
+
+  assert.match(firstReference, /^APR-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
+  assert.equal(secondReference, firstReference);
 });

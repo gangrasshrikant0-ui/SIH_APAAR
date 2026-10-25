@@ -1,29 +1,14 @@
 // Authentication API
 // Simulates REST endpoint /api/v1/auth/*
 
-import { DEMO_ACCOUNTS, getCurrentUser, setCurrentUser } from "../mocks/mockStore";
-import { logAuditEvent } from "../mocks/mockAuditLog";
+import { DEMO_ACCOUNTS, getCurrentUser, setCurrentUser } from "../mocks/mockStore.js";
+import { logAuditEvent } from "../mocks/mockAuditLog.js";
 
 export const authApi = {
-  // Login method supporting Student, College, and AICTE
-  async login({ role, identifier, password, otp }) {
+  // Login method supporting College, AICTE, and External Verifier
+  async login({ role }) {
     // Artificial latency for realistic REST API simulation
     await new Promise((res) => setTimeout(res, 250));
-
-    if (role === "STUDENT") {
-      const demoStudent = DEMO_ACCOUNTS.STUDENT;
-      // Allow demo login with demo APAAR or any 12 digit input
-      const cleanApaar = (identifier || "").replace(/\s+/g, "");
-      if (cleanApaar.length === 12 || cleanApaar === demoStudent.apaarId) {
-        const studentUser = {
-          ...demoStudent,
-          apaarId: cleanApaar || demoStudent.apaarId
-        };
-        setCurrentUser(studentUser);
-        return { success: true, user: studentUser };
-      }
-      throw new Error("Invalid APAAR ID format. APAAR ID must be exactly 12 digits (format-checked, not identity-verified).");
-    }
 
     if (role === "COLLEGE") {
       const collegeUser = DEMO_ACCOUNTS.COLLEGE;
@@ -37,6 +22,12 @@ export const authApi = {
       // Accept demo login
       setCurrentUser(aicteUser);
       return { success: true, user: aicteUser };
+    }
+
+    if (role === "EXTERNAL_VERIFIER") {
+      const verifierUser = DEMO_ACCOUNTS.EXTERNAL_VERIFIER;
+      setCurrentUser(verifierUser);
+      return { success: true, user: verifierUser };
     }
 
     throw new Error("Unknown role specified.");

@@ -352,7 +352,7 @@ a:hover {
   color: #6B21A8;
 }
 
-.user-role-badge.student {
+.user-role-badge.verifier {
   background: #F0FDF4;
   border-color: #BBF7D0;
   color: #15803D;
@@ -725,6 +725,56 @@ a:hover {
   overflow-y: auto;
   border: 1px solid var(--border-light);
   animation: scaleUp 0.15s ease-out;
+}
+
+.certificate-qr {
+  display: inline-flex;
+  padding: 6mm;
+  background: #FFFFFF;
+  border: 1px solid #000000;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.certificate-qr svg {
+  display: block;
+  width: 30mm;
+  height: 30mm;
+}
+
+.certificate-verification {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-certificate-backdrop,
+  .print-certificate-backdrop * {
+    visibility: visible;
+  }
+
+  .print-certificate-backdrop {
+    position: static;
+    display: block;
+    padding: 0;
+    background: transparent;
+  }
+
+  .print-certificate-dialog {
+    max-width: none;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .print-certificate-actions {
+    display: none !important;
+  }
 }
 
 @keyframes fadeIn {

@@ -30,7 +30,7 @@ export function GovFooter() {
               <li><a href="/#benefits">Benefits & Capabilities</a></li>
               <li><a href="/#how-it-works">How It Works</a></li>
               <li><a href="/#faqs">Frequently Asked Questions</a></li>
-              <li><Link to="/verify/demo-mode">Public Verification Portal</Link></li>
+              <li><Link to="/external/verify">External Verification Portal</Link></li>
             </ul>
           </div>
 

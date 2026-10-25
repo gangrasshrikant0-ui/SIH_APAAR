@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { ShieldCheck, LayoutDashboard, AlertCircle, FileText } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, AlertCircle, FileText, Route, Database } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
 import { getCurrentUser } from "../../mocks/mockStore";
 
@@ -76,7 +76,7 @@ export function AicteLayout() {
         </div>
       </div>
 
-      {/* Subnav Tabs — 3 tabs (audit log merged into National Reports) */}
+      {/* Subnav Tabs */}
       <div className="portal-subnav">
         <div className="gov-container portal-subnav-inner">
           <nav className="portal-tabs" aria-label="AICTE Portal Sections">
@@ -89,24 +89,31 @@ export function AicteLayout() {
             </NavLink>
 
             <NavLink
-              to="/aicte/workbench"
+              to="/aicte/repository"
               className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
             >
+              <Database size={16} />
+              <span>2. Central Repository</span>
+            </NavLink>
+            <NavLink to="/aicte/reports" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
+              <FileText size={16} />
+              <span>3. National Reports</span>
+            </NavLink>
+            <NavLink to="/aicte/workbench" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
               <AlertCircle size={16} />
-              <span>2. Review Queue</span>
+              <span>4. Review Queue</span>
               {stats?.totalEscalated > 0 && (
                 <span style={{ background: "#DC2626", color: "#FFF", borderRadius: "9999px", padding: "1px 6px", fontSize: "0.7rem", fontWeight: "bold" }}>
                   {stats.totalEscalated}
                 </span>
               )}
             </NavLink>
-
             <NavLink
-              to="/aicte/reports"
+              to="/aicte/student-journey"
               className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
             >
-              <FileText size={16} />
-              <span>3. National Reports</span>
+              <Route size={16} />
+              <span>5. Student Journey</span>
             </NavLink>
           </nav>
         </div>

@@ -60,7 +60,7 @@ export function CollegeDashboard() {
             </span>
           </div>
           <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
-            Real-time compliance monitoring against AICTE Approval Master rulebook. Only accepted records count toward enrolment.
+            Refreshable prototype compliance monitoring against the AICTE Approval Master rulebook. Data is synthetic and local; only accepted records count toward enrolment.
           </p>
         </div>
 

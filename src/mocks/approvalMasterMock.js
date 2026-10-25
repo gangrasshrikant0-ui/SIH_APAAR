@@ -25,8 +25,9 @@ export const APPROVAL_MASTER = {
             ST: 8,
             EWS: 12, // Supernumerary 10%
             TFWS: 6, // Supernumerary 5%
-            NRI_FN: 5 // Supernumerary NRI/OCI/FN limit
-          }
+            NRI_FN: 5
+          },
+          supernumerarySeats: { EWS: 12, TFWS: 6, NRI_FN: 5 }
         },
         {
           code: "IT",
@@ -41,7 +42,8 @@ export const APPROVAL_MASTER = {
             EWS: 12,
             TFWS: 6,
             NRI_FN: 5
-          }
+          },
+          supernumerarySeats: { EWS: 12, TFWS: 6, NRI_FN: 5 }
         },
         {
           code: "ENTC",
@@ -56,7 +58,8 @@ export const APPROVAL_MASTER = {
             EWS: 12,
             TFWS: 6,
             NRI_FN: 5
-          }
+          },
+          supernumerarySeats: { EWS: 12, TFWS: 6, NRI_FN: 5 }
         },
         {
           code: "AIDS",
@@ -71,7 +74,8 @@ export const APPROVAL_MASTER = {
             EWS: 6,
             TFWS: 3,
             NRI_FN: 3
-          }
+          },
+          supernumerarySeats: { EWS: 6, TFWS: 3, NRI_FN: 3 }
         }
       ]
     },
@@ -88,14 +92,16 @@ export const APPROVAL_MASTER = {
           name: "Computer Engineering",
           degree: "B.Tech",
           approvedIntake: 150,
-          categoryLimits: { NRI_FN: 10 }
+          categoryLimits: { NRI_FN: 10 },
+          supernumerarySeats: { NRI_FN: 10 }
         },
         {
           code: "MECH",
           name: "Mechanical Engineering",
           degree: "B.Tech",
           approvedIntake: 120,
-          categoryLimits: { NRI_FN: 5 }
+          categoryLimits: { NRI_FN: 5 },
+          supernumerarySeats: { NRI_FN: 5 }
         }
       ]
     },
@@ -112,7 +118,8 @@ export const APPROVAL_MASTER = {
           name: "Computer Engineering",
           degree: "B.Tech",
           approvedIntake: 120,
-          categoryLimits: { NRI_FN: 5 }
+          categoryLimits: { NRI_FN: 5 },
+          supernumerarySeats: { NRI_FN: 5 }
         }
       ]
     }

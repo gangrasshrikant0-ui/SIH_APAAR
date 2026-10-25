@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
-  Search, RefreshCw, CheckCircle2, AlertTriangle, Edit3, ShieldCheck
+  Search, RefreshCw, CheckCircle2, ShieldCheck
 } from "lucide-react";
 import { collegeApi } from "../../api/collegeApi";
-import { StatusBadge, SeverityBadge, OverdueBadge, EscalatedBadge } from "../../components/StatusBadge";
-import { FixRecordModal } from "../../components/FixRecordModal";
+import { StatusBadge } from "../../components/StatusBadge";
+
+const PAGE_SIZE = 10;
 
 function sourceLabel(source) {
   if (source === "MANUAL_ENTRY") return "Manual entry";
@@ -14,6 +15,7 @@ function sourceLabel(source) {
 
 export function CollegeValidate() {
   const { refreshStats } = useOutletContext() || {};
+  const navigate = useNavigate();
 
   const [records, setRecords] = useState([]);
   const [batchId, setBatchId] = useState("");
@@ -25,9 +27,8 @@ export function CollegeValidate() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [validating, setValidating] = useState(false);
   const [summary, setSummary] = useState(null);
-  const [issueRecords, setIssueRecords] = useState([]);
-  const [editRecord, setEditRecord] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [page, setPage] = useState(1);
 
   const loadRecords = useCallback(async () => {
     setIsLoading(true);
@@ -56,7 +57,15 @@ export function CollegeValidate() {
     loadRecords();
   }, [loadRecords]);
 
-  const visibleIds = records.map((r) => r.id);
+  useEffect(() => {
+    setPage(1);
+  }, [sourceFilter, statusFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleRecords = records.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const visibleIds = visibleRecords.map((r) => r.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const stagedCount = records.filter((r) => r.status !== "ACCEPTED").length;
   const nothingSelected = selectedIds.size === 0;
@@ -91,11 +100,6 @@ export function CollegeValidate() {
         blocking: result.blocking,
         warnings: result.warnings
       });
-      setIssueRecords(
-        (result.records || []).filter(
-          (r) => r.status === "ACTION_REQUIRED" || r.status === "PENDING_REVIEW"
-        )
-      );
       await loadRecords();
       if (refreshStats) refreshStats();
     } catch (e) {
@@ -145,6 +149,7 @@ export function CollegeValidate() {
             <option value="ALL">All</option>
             <option value="MANUAL_ENTRY">Manual entry</option>
             <option value="BULK_UPLOAD">Bulk upload</option>
+            <option value="API" disabled>API (planned, not connected)</option>
           </select>
         </div>
 
@@ -162,7 +167,7 @@ export function CollegeValidate() {
       </div>
 
       <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", margin: "0.75rem 0 1rem" }}>
-        Showing {records.length} of {totalRows} records
+        Showing {visibleRecords.length} of {records.length} filtered records (page {currentPage} of {totalPages}; {totalRows} total)
       </p>
 
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem" }}>
@@ -229,7 +234,7 @@ export function CollegeValidate() {
                 </td>
               </tr>
             ) : (
-              records.map((r) => (
+              visibleRecords.map((r) => (
                 <tr key={r.id}>
                   <td>
                     <input
@@ -257,6 +262,10 @@ export function CollegeValidate() {
             )}
           </tbody>
         </table>
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
+        <button type="button" className="btn btn-secondary btn-sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</button>
+        <button type="button" className="btn btn-secondary btn-sm" disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>Next</button>
       </div>
 
       {summary && (
@@ -287,129 +296,19 @@ export function CollegeValidate() {
         </div>
       )}
 
-      {(summary ? issueRecords : records.filter((r) => r.status === "ACTION_REQUIRED" || r.status === "PENDING_REVIEW")).length > 0 && (
-        <>
-          <h3 style={{ fontSize: "1.15rem", color: "var(--gov-navy-900)", marginBottom: "0.75rem" }}>Issues</h3>
-          <div className="data-table-wrapper">
-            <table className="data-table" aria-label="Student Issue Workbench Records">
-              <thead>
-                <tr>
-                  <th scope="col">Student Details</th>
-                  <th scope="col">APAAR ID (12 Digits)</th>
-                  <th scope="col">Course & Year</th>
-                  <th scope="col">Issue Type & Severity</th>
-                  <th scope="col" style={{ minWidth: "260px" }}>Reason & Evidence</th>
-                  <th scope="col">Owner & Required Action</th>
-                  <th scope="col">Due Date & Badges</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" style={{ textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(summary ? issueRecords : records.filter((r) => r.status === "ACTION_REQUIRED" || r.status === "PENDING_REVIEW")).map((r) => {
-                  const isFlagged = r.status === "ACTION_REQUIRED" || r.status === "PENDING_REVIEW";
-                  return (
-                    <tr key={r.id} className={isFlagged ? "row-flagged" : ""}>
-                      <td>
-                        <div style={{ fontWeight: "700", color: "var(--gov-navy-900)" }}>{r.studentName}</div>
-                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          PRN: <code>{r.studentId}</code> {r.gender ? <>&bull; {r.gender}</> : null}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontFamily: "monospace", fontWeight: "600", fontSize: "0.875rem", color: r.apaarId ? "var(--gov-navy-900)" : "#DC2626" }}>
-                          {r.apaarId ? <span>{r.apaarId}</span> : <span style={{ fontStyle: "italic", color: "#DC2626" }}>[MISSING]</span>}
-                        </div>
-                        <div style={{ fontSize: "0.6875rem", color: "var(--text-muted)", marginTop: "2px" }}>
-                          format-checked, not identity-verified
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: "600", fontSize: "0.8125rem", color: "var(--gov-navy-900)" }}>{r.programme}</div>
-                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                          {r.yearOfStudy} &bull; Cat: <strong>{r.category}</strong>
-                        </div>
-                      </td>
-                      <td>
-                        {r.issueType ? (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", alignItems: "flex-start" }}>
-                            <span style={{ fontWeight: "700", fontSize: "0.78125rem", color: "#991B1B" }}>
-                              {r.issueTitle || r.issueType}
-                            </span>
-                            <SeverityBadge severity={r.severity} />
-                          </div>
-                        ) : (
-                          <span style={{ color: "#166534", fontSize: "0.75rem", fontWeight: "600" }}>✓ Passed Checks</span>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{ fontSize: "0.8125rem", color: isFlagged ? "#78350F" : "var(--text-main)", marginBottom: "0.25rem", lineHeight: "1.4" }}>
-                          {r.reason}
-                        </div>
-                        {r.evidence && (
-                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", background: "rgba(0,0,0,0.03)", padding: "2px 6px", borderRadius: "4px" }}>
-                            <code>{r.evidence}</code>
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{ fontSize: "0.75rem", fontWeight: "700", color: r.owner === "AICTE Central Reviewer" ? "#6B21A8" : "var(--gov-navy-800)" }}>
-                          {r.owner || "Institution Data Officer"}
-                        </div>
-                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px", lineHeight: "1.3" }}>
-                          {r.requiredAction || "None"}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontSize: "0.75rem", color: "var(--text-main)", fontWeight: "600" }}>{r.dueDate || "N/A"}</div>
-                        {r.dueDateLabel && (
-                          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>{r.dueDateLabel}</div>
-                        )}
-                        <div style={{ display: "flex", gap: "4px", marginTop: "4px", flexWrap: "wrap" }}>
-                          <OverdueBadge isOverdue={r.isOverdue} label="Overdue" />
-                          <EscalatedBadge isEscalated={r.isEscalated} label="Escalated" />
-                        </div>
-                      </td>
-                      <td><StatusBadge status={r.status} /></td>
-                      <td style={{ textAlign: "right" }}>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => setEditRecord(r)}
-                          style={{ background: "#B45309", whiteSpace: "nowrap" }}
-                        >
-                          <Edit3 size={13} />
-                          <span>Edit record</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
+      {summary && summary.flagged > 0 && (
+        <button type="button" className="btn btn-secondary" onClick={() => navigate(`/college/workbench?batch=${encodeURIComponent(batchId)}`)}>
+          View issues in Issue Workbench
+        </button>
       )}
 
-      {summary && issueRecords.length === 0 && (
+      {summary && summary.flagged === 0 && (
         <div style={{ background: "#DCFCE7", border: "1px solid #86EFAC", color: "#166534", padding: "0.85rem 1rem", borderRadius: "8px", display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <CheckCircle2 size={18} />
           <span>No blocking or warning issues on the last validation run. Records that passed are READY_TO_ACCEPT (not ACCEPTED until you accept them on the Issue Workbench).</span>
         </div>
       )}
 
-      {editRecord && (
-        <FixRecordModal
-          record={editRecord}
-          batchId={batchId}
-          onClose={() => setEditRecord(null)}
-          onFixed={() => {
-            setEditRecord(null);
-            loadRecords();
-            if (refreshStats) refreshStats();
-          }}
-        />
-      )}
     </div>
   );
 }

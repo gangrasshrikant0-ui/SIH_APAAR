@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ShieldCheck,
   Building2,
-  GraduationCap,
+  UserCheck,
   CheckCircle,
   FileSpreadsheet,
   AlertOctagon,
@@ -21,10 +21,11 @@ import { DEMO_ACCOUNTS } from "../mocks/mockStore";
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Login states for each card
-  const [studentApaar, setStudentApaar] = useState(DEMO_ACCOUNTS.STUDENT.apaarId);
-  const [studentOtp, setStudentOtp] = useState(DEMO_ACCOUNTS.STUDENT.demoOtp);
+  const [verifierEmail, setVerifierEmail] = useState(DEMO_ACCOUNTS.EXTERNAL_VERIFIER.email);
+  const [verifierPass, setVerifierPass] = useState(DEMO_ACCOUNTS.EXTERNAL_VERIFIER.passwordHint);
   const [collegeEmail, setCollegeEmail] = useState(DEMO_ACCOUNTS.COLLEGE.email);
   const [collegePass, setCollegePass] = useState(DEMO_ACCOUNTS.COLLEGE.passwordHint);
   const [aicteEmail, setAicteEmail] = useState(DEMO_ACCOUNTS.AICTE.email);
@@ -36,13 +37,13 @@ export function LandingPage() {
   // FAQ Accordion State
   const [openFaq, setOpenFaq] = useState(null);
 
-  const handleStudentLogin = async (e) => {
+  const handleExternalVerifierLogin = async (e) => {
     e.preventDefault();
-    setLoadingRole("STUDENT");
+    setLoadingRole("EXTERNAL_VERIFIER");
     setLoginError("");
     try {
-      await authApi.login({ role: "STUDENT", identifier: studentApaar, otp: studentOtp });
-      navigate("/student/record");
+      await authApi.login({ role: "EXTERNAL_VERIFIER", identifier: verifierEmail, password: verifierPass });
+      navigate(searchParams.get("returnTo") || "/external/verify");
     } catch (err) {
       setLoginError(err.message);
     } finally {
@@ -142,46 +143,44 @@ export function LandingPage() {
 
           {/* Three Login Cards */}
           <div id="logins" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: "1.5rem", textAlign: "left" }}>
-            {/* 1. Student Login Card */}
+            {/* 1. External Verifier Login Card */}
             <div className="gov-card" style={{ display: "flex", flexDirection: "column", borderColor: "#BBF7D0", position: "relative" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#DCFCE7", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <GraduationCap size={22} />
+                  <UserCheck size={22} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: "1.125rem", color: "var(--gov-navy-900)" }}>Student Portal</h3>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>View record & manage consent</span>
+                  <h3 style={{ fontSize: "1.125rem", color: "var(--gov-navy-900)" }}>External Verifier</h3>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Employer / Regulator</span>
                 </div>
               </div>
 
               <div style={{ background: "#F0FDF4", border: "1px solid #DCFCE7", padding: "0.6rem 0.75rem", borderRadius: "6px", fontSize: "0.75rem", color: "#166534", marginBottom: "1rem" }}>
-                <strong>Demo Mode:</strong> APAAR ID + simulated OTP.
+                <strong>Demo Mode:</strong> Authorised stakeholder access.
               </div>
 
-              <form onSubmit={handleStudentLogin} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1 }}>
+              <form onSubmit={handleExternalVerifierLogin} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", flex: 1 }}>
                 <div>
                   <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "700", color: "var(--gov-navy-800)", marginBottom: "3px" }}>
-                    12-Digit APAAR ID
+                    Verifier Email
                   </label>
                   <input
-                    type="text"
-                    value={studentApaar}
-                    onChange={(e) => setStudentApaar(e.target.value)}
+                    type="email"
+                    value={verifierEmail}
+                    onChange={(e) => setVerifierEmail(e.target.value)}
                     className="search-input"
-                    style={{ width: "100%", fontSize: "0.875rem", fontFamily: "monospace" }}
-                    placeholder="1234 5678 9012"
+                    style={{ width: "100%", fontSize: "0.875rem" }}
                   />
-                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>format-checked, not identity-verified</span>
                 </div>
 
                 <div>
                   <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "700", color: "var(--gov-navy-800)", marginBottom: "3px" }}>
-                    Simulated OTP (Demo: <code>7492</code>)
+                    Password (Demo: <code>demo123</code>)
                   </label>
                   <input
-                    type="text"
-                    value={studentOtp}
-                    onChange={(e) => setStudentOtp(e.target.value)}
+                    type="password"
+                    value={verifierPass}
+                    onChange={(e) => setVerifierPass(e.target.value)}
                     className="search-input"
                     style={{ width: "100%", fontSize: "0.875rem" }}
                   />
@@ -192,9 +191,9 @@ export function LandingPage() {
                     type="submit"
                     className="btn btn-primary"
                     style={{ width: "100%", background: "#166534" }}
-                    disabled={loadingRole === "STUDENT"}
+                    disabled={loadingRole === "EXTERNAL_VERIFIER"}
                   >
-                    {loadingRole === "STUDENT" ? "Logging in..." : "Login as Student"}
+                    {loadingRole === "EXTERNAL_VERIFIER" ? "Logging in..." : "Login as External Verifier"}
                   </button>
                 </div>
               </form>
@@ -340,7 +339,7 @@ export function LandingPage() {
                 </li>
                 <li style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
                   <span style={{ color: "#166534", fontWeight: "bold" }}>✓</span>
-                  <span>An extension module that seamlessly connects institutional ERPs with AICTE central systems.</span>
+                  <span>An extension module designed to connect institutional ERPs with AICTE central systems; integration is simulated in this prototype.</span>
                 </li>
                 <li style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
                   <span style={{ color: "#166534", fontWeight: "bold" }}>✓</span>
@@ -403,7 +402,7 @@ export function LandingPage() {
                 1. Automated Validation
               </h3>
               <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)", lineHeight: "1.6" }}>
-                Instant multi-rule engine evaluates 12-digit APAAR format, batch & repository duplicates, cross-institution conflicts, approved intake quotas, and NRI/FN supernumerary limits.
+                Automated rule-based checks evaluate 12-digit APAAR format, batch & repository duplicates, cross-institution conflicts, approved intake quotas, and NRI/FN supernumerary limits.
               </p>
             </div>
 
