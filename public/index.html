@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AICTE Student Validation — Demo</title>
+<style>
+:root{font-family:Inter,Segoe UI,sans-serif;color:#17253d;background:#f5f7fb;--navy:#12345b;--blue:#2166a5;--line:#dce3ed;--muted:#5d6d82}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1240px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}.brand{font-size:22px;font-weight:700;color:var(--navy)}.sub{color:var(--muted);font-size:13px;margin-top:5px}.demo{background:#fff3d6;border:1px solid #e4bb55;color:#765400;padding:9px 12px;border-radius:5px;font-size:12px;font-weight:700}.panel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:20px;margin:16px 0}.panel h2{font-size:17px;margin:0 0 8px;color:var(--navy)}.help{font-size:13px;color:var(--muted);line-height:1.5}.upload{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}button{background:var(--blue);color:#fff;border:0;border-radius:5px;padding:10px 15px;font-weight:600;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.metric{border:1px solid var(--line);padding:12px;border-radius:6px}.metric b{display:block;font-size:22px;color:var(--navy)}.metric span{font-size:11px;color:var(--muted)}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border-bottom:1px solid var(--line);padding:11px 9px;text-align:left;white-space:nowrap}th{background:#f1f4f8;color:var(--navy)}.status{font-weight:700}.ACTION_REQUIRED{color:#b33b31}.READY_TO_ACCEPT{color:#21734b}.PENDING_REVIEW{color:#966b00}.filters{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0}.filter{background:#fff;color:var(--navy);border:1px solid var(--line);padding:7px 10px;font-size:12px}.issue{white-space:normal;min-width:280px}.issue b{color:#a3372d}.error{color:#a3372d;font-size:13px}.ok{color:#21734b;font-size:13px}
+/* Error-report download bar */
+.download-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+#dlBtn{background:#1a6e3c;color:#fff}
+#dlBtn:disabled{background:var(--muted)}
+#dlNote{font-size:12px;color:var(--muted)}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:560px){.wrap{padding:14px}.metrics{grid-template-columns:repeat(2,1fr)}.top{display:block}.demo{display:inline-block;margin-top:14px}}
+</style>
+</head>
+<body><main class="wrap">
+<header class="top"><div><div class="brand">AICTE Student Data Validation</div><div class="sub">APAAR format, duplicate, reference-data and intake checks</div></div><div class="demo">DEMO MODE — official APAAR verification is not connected</div></header>
+<section class="panel"><h2>Upload student records</h2><div class="help">Upload a CSV up to 5 MB. Required columns are listed in <a href="../API_CONTRACT.md">API_CONTRACT.md</a>. "Format Valid" is not "Officially Verified".</div><div class="upload"><input id="file" type="file" accept=".csv,text/csv"><button id="validate">Validate upload</button><a href="../test-data/apaar_validation_test.csv" download>Download test CSV</a><span id="message"></span></div></section>
+<section id="summary" class="panel" hidden><div class="metrics" id="metrics"></div><div class="filters" id="filters"></div></section>
+<section id="results" class="panel" hidden>
+  <h2>Validation results</h2>
+  <div class="table-wrap"><table><thead><tr><th>Row</th><th>Safe reference</th><th>APAAR</th><th>Institution / Programme</th><th>Format</th><th>Official check</th><th>Category</th><th>Status</th><th>Issues</th></tr></thead><tbody id="tbody"></tbody></table></div>
+  <div class="download-bar">
+    <button id="dlBtn" disabled>⬇ Download Error Report CSV</button>
+    <span id="dlNote">Run a validation first.</span>
+  </div>
+</section>
+</main>
+<script>
+const state={data:null,filter:'ALL'};
+const labels=[['totalUploaded','Uploaded'],['passingLocalValidation','Local pass'],['actionRequired','Action required'],['duplicateCount','Duplicates'],['missingInvalidApaarCount','Missing/invalid APAAR'],['pendingOfficialVerification','Pending official']];
+const file=document.querySelector('#file'),message=document.querySelector('#message');
+const dlBtn=document.querySelector('#dlBtn'),dlNote=document.querySelector('#dlNote');
+
+function updateDownloadBar(){
+  if(!state.data){dlBtn.disabled=true;dlNote.textContent='Run a validation first.';return;}
+  const count=state.data.results.reduce((n,r)=>n+r.issues.length,0);
+  if(count===0){dlBtn.disabled=true;dlNote.textContent='No validation errors to download.';}
+  else{dlBtn.disabled=false;dlNote.textContent=`${count} issue${count===1?'':'s'} will be included in the report.`;}
+}
+
+function render(){
+  const s=state.data.summary;
+  document.querySelector('#summary').hidden=false;
+  document.querySelector('#results').hidden=false;
+  document.querySelector('#metrics').innerHTML=labels.map(([key,label])=>`<div class="metric"><b>${s[key]}</b><span>${label}</span></div>`).join('');
+  const filters=[['ALL','All'],['PASS','Passed local'],['ACTION_REQUIRED','Action required'],['PENDING','Pending verification'],['DUPLICATE','Duplicates'],['INVALID','Invalid/missing APAAR'],['CATEGORY','Category issues'],['MAPPING','Mapping/intake']];
+  document.querySelector('#filters').innerHTML=filters.map(([key,label])=>`<button class="filter" data-filter="${key}">${label}</button>`).join('');
+  document.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;renderRows()});
+  renderRows();
+  updateDownloadBar();
+}
+
+function included(r){const c=r.issues.map(i=>i.code);return state.filter==='ALL'||(state.filter==='PASS'&&r.recordStatus==='READY_TO_ACCEPT')||(state.filter===r.recordStatus)||(state.filter==='PENDING'&&r.verification.mode==='DEMO')||(state.filter==='DUPLICATE'&&c.some(x=>x.includes('DUPLICATE')||x==='REPEATED_UPLOAD'))||(state.filter==='INVALID'&&c.some(x=>x.includes('APAAR')))||(state.filter==='CATEGORY'&&c.some(x=>x.includes('CATEGORY')||x==='MISSING_SEAT_CATEGORY'))||(state.filter==='MAPPING'&&c.some(x=>x.includes('MAPPING')||x.includes('INTAKE')))}
+
+function renderRows(){document.querySelector('#tbody').innerHTML=state.data.results.filter(included).map(r=>`<tr><td>${r.rowNumber}</td><td>${r.safeStudentReference}</td><td>${r.maskedApaarId}</td><td>${r.institution}<br>${r.programme}</td><td>${r.checks.apaarFormat||'—'}</td><td>${r.verification.outcome}<br>${r.verification.mode}</td><td>${r.category}</td><td class="status ${r.recordStatus}">${r.recordStatus}</td><td class="issue">${r.issues.length?r.issues.map(i=>`<div><b>${i.code}</b>: ${i.message}<br><span>${i.suggestedAction}</span></div>`).join(''):'No issues'}</td></tr>`).join('')}
+
+document.querySelector('#validate').onclick=async()=>{
+  if(!file.files[0]){message.textContent='Choose a CSV file first.';message.className='error';return;}
+  message.textContent=' Validating…';
+  try{
+    const csv=await file.files[0].text();
+    const response=await fetch('http://localhost:8010/api/validation/batches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({csv})});
+    const data=await response.json();
+    if(!response.ok)throw Error(data.error);
+    state.data=data;
+    message.textContent=' Validation complete.';
+    message.className='ok';
+    render();
+  }catch(error){message.textContent=` ${error.message||'Validation service unavailable. Start npm start.'}`;message.className='error';}
+};
+
+dlBtn.onclick=()=>{
+  if(!state.data||!state.data.batchId)return;
+  const url=`http://localhost:8010/api/validation/batches/${encodeURIComponent(state.data.batchId)}/error-report`;
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='';  // server sets Content-Disposition filename
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+</script></body></html>

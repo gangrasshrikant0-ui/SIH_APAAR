@@ -1,0 +1,24 @@
+student_id,apaar_id,student_name,dob,institution_id,institution_name,programme_id,programme_name,academic_year,reservation_category,seat_category,nri_flag,oci_flag,foreign_national_flag,admission_date,enrolment_status
+SYN-001,900000000001,Synthetic Clean,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-002,,Synthetic Missing,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,GENERAL,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-003,12345678901,Synthetic Eleven,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-004,1234567890123,Synthetic Thirteen,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-005,12345678901A,Synthetic Letters,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-006, 900000000001 ,Synthetic Outer Space,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-007,900000 00001,Synthetic Internal Space,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-008,9000-0000-001,Synthetic Hyphen,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-009,900000000001,Synthetic Batch Duplicate,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-010,900000000010,Synthetic Repository,2004-02-02,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-011,900000000011,Synthetic Transfer,2003-03-03,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-012,, ,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-013,900000000013,Synthetic Bad DOB,2024-02-30,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-014,900000000007,Wrong Synthetic Name,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-015,900000000015,Synthetic Unknown Institution,2004-01-15,UNKNOWN,Unknown Institute,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-016,900000000016,Synthetic Wrong Programme,2004-01-15,INST-A,Synthetic Institute A,PROG-AI,Synthetic AI,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-017,900000000017,Synthetic Missing Category,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-018,900000000018,Synthetic Unsupported Category,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,MARS,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-019,900000000019,Synthetic Missing Seat,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,,false,false,false,2026-07-01,ACTIVE
+SYN-020,900000000020,Synthetic Excess Intake,2004-01-15,INST-B,Synthetic Institute B,PROG-AI,Synthetic AI,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-021,900000000021,Synthetic Withdrawn,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,WITHDRAWN
+SYN-022,900000000001,Synthetic Reupload,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE
+SYN-023,900000000002,Synthetic Timeout,2004-01-15,INST-A,Synthetic Institute A,PROG-CSE,Synthetic CSE,2026,SC,REGULAR,false,false,false,2026-07-01,ACTIVE

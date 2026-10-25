@@ -1,0 +1,14 @@
+{
+  "name": "aicte-apaar-validation-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AICTE student-data validation demo with deterministic APAAR verification adapter",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "pg": "^8.16.3"
+  }
+}
