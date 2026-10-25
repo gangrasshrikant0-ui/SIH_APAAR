@@ -56,7 +56,7 @@ export function LandingPage() {
     setLoginError("");
     try {
       await authApi.login({ role: "COLLEGE", identifier: collegeEmail, password: collegePass });
-      navigate("/college/workbench");
+      navigate("/college/dashboard");
     } catch (err) {
       setLoginError(err.message);
     } finally {

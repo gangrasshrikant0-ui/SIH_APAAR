@@ -105,8 +105,8 @@ export function GovHeader() {
               
               {/* Quick portal shortcut based on role */}
               {currentUser.role === "COLLEGE" && (
-                <Link to="/college/workbench" className="btn btn-secondary btn-sm" title="Go to College Workbench">
-                  Workbench
+                <Link to="/college/dashboard" className="btn btn-secondary btn-sm" title="Go to College Intake Dashboard">
+                  Dashboard
                 </Link>
               )}
               {currentUser.role === "AICTE" && (

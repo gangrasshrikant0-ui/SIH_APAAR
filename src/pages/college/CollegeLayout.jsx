@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Building2, UploadCloud, AlertCircle, LayoutDashboard, FileText, CheckCircle2 } from "lucide-react";
+import { Building2, UploadCloud, AlertCircle, LayoutDashboard, FileText, CheckCircle2, UserPlus } from "lucide-react";
 import { getCurrentUser } from "../../mocks/mockStore";
 import { collegeApi } from "../../api/collegeApi";
+import { COLLEGE_PORTAL_TABS } from "./collegeNav";
+
+const TAB_ICONS = {
+  "/college/dashboard": LayoutDashboard,
+  "/college/add-students": UserPlus,
+  "/college/upload": UploadCloud,
+  "/college/validate": CheckCircle2,
+  "/college/workbench": AlertCircle,
+  "/college/reports": FileText
+};
 
 export function CollegeLayout() {
   const currentUser = getCurrentUser();
@@ -80,42 +90,24 @@ export function CollegeLayout() {
       <div className="portal-subnav">
         <div className="gov-container portal-subnav-inner">
           <nav className="portal-tabs" aria-label="College Portal Sections">
-            <NavLink
-              to="/college/upload"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <UploadCloud size={16} />
-              <span>1. Batch Upload & Ingestion</span>
-            </NavLink>
-
-            <NavLink
-              to="/college/workbench"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <AlertCircle size={16} />
-              <span>2. Issue Workbench</span>
-              {stats?.openAnomalies > 0 && (
-                <span style={{ background: "#DC2626", color: "#FFF", borderRadius: "9999px", padding: "1px 6px", fontSize: "0.7rem", fontWeight: "bold" }}>
-                  {stats.openAnomalies}
-                </span>
-              )}
-            </NavLink>
-
-            <NavLink
-              to="/college/dashboard"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <LayoutDashboard size={16} />
-              <span>3. Intake Dashboard</span>
-            </NavLink>
-
-            <NavLink
-              to="/college/reports"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <FileText size={16} />
-              <span>4. Compliance Reports</span>
-            </NavLink>
+            {COLLEGE_PORTAL_TABS.map((tab) => {
+              const Icon = TAB_ICONS[tab.to];
+              return (
+                <NavLink
+                  key={tab.to}
+                  to={tab.to}
+                  className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
+                >
+                  {Icon ? <Icon size={16} /> : null}
+                  <span>{tab.n}. {tab.label}</span>
+                  {tab.to === "/college/workbench" && stats?.openAnomalies > 0 && (
+                    <span style={{ background: "#DC2626", color: "#FFF", borderRadius: "9999px", padding: "1px 6px", fontSize: "0.7rem", fontWeight: "bold" }}>
+                      {stats.openAnomalies}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
           </nav>
         </div>
       </div>

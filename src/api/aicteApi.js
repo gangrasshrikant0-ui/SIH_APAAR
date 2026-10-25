@@ -224,13 +224,88 @@ export const aicteApi = {
     return getAuditLogs();
   },
 
-  // Export National Intake Report (CSV)
+  // Export National Intake Report (CSV) — legacy, kept for backwards compat
   async exportNationalIntakeCSV() {
     const stats = await this.getAicteDashboardStats("ALL");
     const headers = "Institution Name,AICTE ID,Campus,Approved Intake,Accepted Enrolment,Utilisation %,Open Anomalies,Escalated Cases\n";
-    const rows = stats.institutions.map((i) => 
+    const rows = stats.institutions.map((i) =>
       `"${i.name}","${i.aicteId}","${i.campus}",${i.approvedIntake},${i.acceptedEnrolment},"${i.utilisation}%",${i.openAnomalies},${i.escalatedCount}`
     ).join("\n");
     return headers + rows;
+  },
+
+  // Per-institution × per-programme intake rows for the Intake Report view.
+  // Derives live accepted-enrolment numbers from the same batch data the
+  // National Dashboard uses, so the two views always agree.
+  async getIntakeReportRows() {
+    await new Promise((res) => setTimeout(res, 80));
+    const batches = getStoredBatches();
+    const academicYear = APPROVAL_MASTER.academicYear;
+
+    const rows = [];
+    for (const inst of APPROVAL_MASTER.institutions) {
+      // Find the batch that belongs to this institution
+      const batch = Object.values(batches).find(
+        (b) => b.institutionId === inst.id || b.aicteId === inst.aicteId
+      ) || {};
+      const records = batch.records || [];
+
+      for (const prog of inst.programmes) {
+        // Only ACCEPTED records count toward enrolment (per spec §3-B)
+        const accepted = records.filter(
+          (r) => r.status === "ACCEPTED" && r.programme === prog.name
+        ).length;
+        // Also include batch-level acceptedCount attributed to this programme
+        // (clean batches store counts without per-record breakdown)
+        const batchAccepted = accepted > 0 ? accepted : (
+          prog.approvedIntake > 0
+            ? Math.round((batch.acceptedCount || 0) * (prog.approvedIntake / inst.programmes.reduce((a, p) => a + p.approvedIntake, 0)))
+            : 0
+        );
+        const openAnomalies = records.filter(
+          (r) =>
+            (r.status === "ACTION_REQUIRED" || r.status === "PENDING_REVIEW") &&
+            r.programme === prog.name
+        ).length;
+        const escalated = records.filter(
+          (r) => r.isEscalated && r.programme === prog.name
+        ).length;
+        const utilisation =
+          prog.approvedIntake > 0
+            ? Math.round((batchAccepted / prog.approvedIntake) * 100)
+            : 0;
+
+        rows.push({
+          institution: inst.shortName || inst.name,
+          institutionFull: inst.name,
+          institutionId: inst.id,
+          programme: `${prog.name} (${prog.degree})`,
+          programmeName: prog.name,
+          year: academicYear,
+          approvedIntake: prog.approvedIntake,
+          acceptedEnrolment: batchAccepted,
+          utilisation,
+          openAnomalies,
+          escalated
+        });
+      }
+    }
+    return rows;
+  },
+
+  // Write a REPORT_DOWNLOADED audit entry (called after each CSV download)
+  logReportDownload({ reportName, rowCount, filtersActive }) {
+    const user = getCurrentUser();
+    logAuditEvent({
+      actorName: user?.name || "AICTE Reviewer",
+      actorRole: user?.role || "AICTE",
+      actorEmail: user?.email || "aicte.central@gov.in",
+      actionType: "REPORT_DOWNLOADED",
+      resourceType: "REPORT",
+      resourceId: reportName,
+      details: `Downloaded "${reportName}" with ${rowCount} row(s). Filters applied: ${filtersActive ? "Yes" : "No"}.`,
+      changeSummary: `${rowCount} record(s) exported to CSV`,
+      severity: "INFO"
+    });
   }
 };

@@ -11,11 +11,13 @@ import { CollegeUpload } from "./pages/college/CollegeUpload";
 import { CollegeWorkbench } from "./pages/college/CollegeWorkbench";
 import { CollegeDashboard } from "./pages/college/CollegeDashboard";
 import { CollegeReports } from "./pages/college/CollegeReports";
+import { CollegeAddStudents } from "./pages/college/CollegeAddStudents";
+import { CollegeValidate } from "./pages/college/CollegeValidate";
+import { COLLEGE_DEFAULT_PATH } from "./pages/college/collegeNav";
 
 import { AicteLayout } from "./pages/aicte/AicteLayout";
 import { AicteDashboard } from "./pages/aicte/AicteDashboard";
 import { AicteReviewQueue } from "./pages/aicte/AicteReviewQueue";
-import { AicteAuditLog } from "./pages/aicte/AicteAuditLog";
 import { AicteReports } from "./pages/aicte/AicteReports";
 
 import { StudentRecord } from "./pages/student/StudentRecord";
@@ -52,10 +54,12 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/college/workbench" replace />} />
-              <Route path="upload" element={<CollegeUpload />} />
-              <Route path="workbench" element={<CollegeWorkbench />} />
+              <Route index element={<Navigate to={COLLEGE_DEFAULT_PATH} replace />} />
               <Route path="dashboard" element={<CollegeDashboard />} />
+              <Route path="add-students" element={<CollegeAddStudents />} />
+              <Route path="upload" element={<CollegeUpload />} />
+              <Route path="validate" element={<CollegeValidate />} />
+              <Route path="workbench" element={<CollegeWorkbench />} />
               <Route path="reports" element={<CollegeReports />} />
             </Route>
 
@@ -71,7 +75,8 @@ function App() {
               <Route index element={<Navigate to="/aicte/dashboard" replace />} />
               <Route path="dashboard" element={<AicteDashboard />} />
               <Route path="workbench" element={<AicteReviewQueue />} />
-              <Route path="audit" element={<AicteAuditLog />} />
+              {/* Old /aicte/audit route → redirect to National Reports with audit view open */}
+              <Route path="audit" element={<Navigate to="/aicte/reports?view=audit" replace />} />
               <Route path="reports" element={<AicteReports />} />
             </Route>
 

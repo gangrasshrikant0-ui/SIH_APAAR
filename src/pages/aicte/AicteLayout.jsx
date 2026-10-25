@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { ShieldCheck, LayoutDashboard, AlertCircle, FileText, History, Building2 } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, AlertCircle, FileText } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
 import { getCurrentUser } from "../../mocks/mockStore";
 
@@ -37,7 +37,7 @@ export function AicteLayout() {
                   All India Council for Technical Education &bull; Central Review Bureau
                 </span>
                 <h1 style={{ fontSize: "1.35rem", color: "#FFFFFF", fontWeight: "800", margin: "2px 0" }}>
-                  National Student Data Verification & Adjudication Portal
+                  National Student Data Verification &amp; Adjudication Portal
                 </h1>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "0.8125rem", color: "#E0E7FF" }}>
                   <span>Reviewer: <strong>{currentUser?.name || "Dr. M. Jagadesh Kumar"}</strong></span>
@@ -76,7 +76,7 @@ export function AicteLayout() {
         </div>
       </div>
 
-      {/* Subnav Tabs */}
+      {/* Subnav Tabs — 3 tabs (audit log merged into National Reports) */}
       <div className="portal-subnav">
         <div className="gov-container portal-subnav-inner">
           <nav className="portal-tabs" aria-label="AICTE Portal Sections">
@@ -102,19 +102,11 @@ export function AicteLayout() {
             </NavLink>
 
             <NavLink
-              to="/aicte/audit"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <History size={16} />
-              <span>3. Compliance Audit Log</span>
-            </NavLink>
-
-            <NavLink
               to="/aicte/reports"
               className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
             >
               <FileText size={16} />
-              <span>4. National Reports</span>
+              <span>3. National Reports</span>
             </NavLink>
           </nav>
         </div>

@@ -46,10 +46,22 @@ The landing page features **three dedicated login cards** with one-click demo cr
 
 | Role | Demo Identifier | Demo Password / OTP | Default Portal Route |
 | :--- | :--- | :--- | :--- |
-| **College (PICT Pune)** | `pict.admin@college.edu` | `demo123` | `/college/workbench` |
+| **College (PICT Pune)** | `pict.admin@college.edu` | `demo123` | `/college/dashboard` |
 | **AICTE Central Reviewer** | `aicte.central@gov.in` | `demo123` | `/aicte/dashboard` |
 | **Student (Aarav Sharma)** | `1111 2222 3333` | `7492` *(demo mode)* | `/student/record` |
 | **Public Verifier** | *No login required* | *N/A* | `/verify/111122223333` |
+
+### College portal tabs
+After college login the landing page is **Intake Dashboard**. Tab order:
+
+1. Intake Dashboard (`/college/dashboard`)
+2. Add Students (`/college/add-students`) — manual single or few-row entry into staging
+3. Batch Upload & Ingestion (`/college/upload`)
+4. Validate Records (`/college/validate`) — runs the existing validation engine on staged records
+5. Issue Workbench (`/college/workbench`)
+6. Compliance Reports (`/college/reports`)
+
+`/college` redirects to `/college/dashboard`. Previous paths (`/college/upload`, `/college/workbench`, `/college/dashboard`, `/college/reports`) still work.
 
 ### Route Guards & Compliance Audit Log
 Any attempt by a user to access a route belonging to another role (e.g. a College user attempting `/aicte/*`) is intercepted by `ProtectedRoute`, presents an accessible **Access Denied** notice, and records an `UNAUTHORIZED_ACCESS_ATTEMPT` event with timestamp into the Mock Compliance Audit Log.
