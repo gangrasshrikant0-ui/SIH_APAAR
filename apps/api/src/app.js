@@ -56,4 +56,11 @@ const uploadsRouter = require("./modules/uploads/uploads.routes");
 
 app.use("/api/uploads", uploadsRouter);
 
+
+const validationsRouter =
+    require("./modules/validations/validations.routes");
+
+app.use("/api/validations", validationsRouter);
+
+
 module.exports = app;
