@@ -63,4 +63,11 @@ const validationsRouter =
 app.use("/api/validations", validationsRouter);
 
 
+
+const enrolmentsRouter =
+    require("./modules/enrolments/enrolments.routes");
+
+app.use("/api/enrolments", enrolmentsRouter);
+
+
 module.exports = app;
