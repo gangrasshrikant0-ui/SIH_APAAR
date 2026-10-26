@@ -1,0 +1,4 @@
+apaar_id,student_name,prn,programme_code,academic_year
+900000123456,Synthetic Upload Student A,SIH-UPLOAD-001,COMP,2026-27
+,Synthetic Upload Student Missing APAAR,SIH-UPLOAD-002,COMP,2026-27
+bad,Synthetic Upload Student Invalid APAAR,SIH-UPLOAD-003,COMP,2026-27

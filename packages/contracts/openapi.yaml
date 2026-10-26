@@ -1,0 +1,588 @@
+openapi: 3.0.3
+info:
+  title: APAAR Student Data API
+  version: 1.1.0
+  description: Synthetic-data API for institution-scoped student data workflows.
+servers:
+  - url: http://127.0.0.1:5000
+tags:
+  - name: Authentication
+  - name: Institutions
+  - name: Students
+  - name: Uploads
+  - name: Validation
+  - name: Enrolments
+  - name: Verification
+paths:
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate an active account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Signed access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Too many login attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/institutions:
+    get:
+      tags: [Institutions]
+      security: [{ bearerAuth: [] }]
+      summary: List institutions visible to the authenticated role
+      responses:
+        '200':
+          description: Institution data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstitutionListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/institutions/me:
+    get:
+      tags: [Institutions]
+      security: [{ bearerAuth: [] }]
+      summary: Retrieve the authenticated institution
+      responses:
+        '200':
+          description: Institution profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstitutionResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/institutions/me/programmes:
+    get:
+      tags: [Institutions]
+      security: [{ bearerAuth: [] }]
+      summary: Retrieve programmes for the authenticated institution
+      responses:
+        '200':
+          description: Programme data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgrammeListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/students:
+    get:
+      tags: [Students]
+      security: [{ bearerAuth: [] }]
+      summary: Retrieve institution-scoped students
+      responses:
+        '200':
+          description: Student data with masked APAAR identifiers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/uploads:
+    get:
+      tags: [Uploads]
+      security: [{ bearerAuth: [] }]
+      summary: Retrieve institution-scoped upload batches
+      responses:
+        '200':
+          description: Upload batches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Uploads]
+      security: [{ bearerAuth: [] }]
+      summary: Upload and validate a CSV batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonUploadRequest'
+          text/csv:
+            schema:
+              type: string
+              maxLength: 5242880
+      responses:
+        '201':
+          description: CSV accepted for validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/validations/issues:
+    get:
+      tags: [Validation]
+      security: [{ bearerAuth: [] }]
+      summary: List institution-scoped validation issues
+      responses:
+        '200':
+          description: Validation issues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/validations/issues/{id}:
+    get:
+      tags: [Validation]
+      security: [{ bearerAuth: [] }]
+      summary: Retrieve one validation issue
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Validation issue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssueResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Validation]
+      security: [{ bearerAuth: [] }]
+      summary: Correct an issue and move it to pending review
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrectionRequest'
+      responses:
+        '200':
+          description: Correction submitted for revalidation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrectionResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Issue is not in a correctable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/enrolments:
+    get:
+      tags: [Enrolments]
+      security: [{ bearerAuth: [] }]
+      summary: Retrieve institution-scoped enrolments
+      responses:
+        '200':
+          description: Enrolment data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrolmentListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/enrolments/{id}:
+    get:
+      tags: [Enrolments]
+      security: [{ bearerAuth: [] }]
+      summary: Retrieve one enrolment
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Enrolment data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrolmentResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /api/enrolments/accept:
+    post:
+      tags: [Enrolments]
+      security: [{ bearerAuth: [] }]
+      summary: Accept a validated upload row as an enrolment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptEnrolmentRequest'
+      responses:
+        '201':
+          description: Enrolment accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrolmentResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: Database validation or business-rule failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/verification/consents:
+    post:
+      tags: [Verification]
+      security: [{ bearerAuth: [] }]
+      summary: Create student consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentRequest'
+      responses:
+        '201':
+          description: Consent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/verification/consents/{id}/revoke:
+    post:
+      tags: [Verification]
+      security: [{ bearerAuth: [] }]
+      summary: Revoke active student consent
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Consent revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentRevokeResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/verification/requests:
+    post:
+      tags: [Verification]
+      security: [{ bearerAuth: [] }]
+      summary: Create a consent-aware verification request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+      responses:
+        '201':
+          description: Verification request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Missing, expired, or revoked consent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Insufficient role permissions
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServerError:
+      description: Server or database failure
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 255 }
+        password: { type: string, minLength: 1, maxLength: 200, format: password }
+    LoginResponse:
+      type: object
+      required: [success, token, user]
+      properties:
+        success: { type: boolean, example: true }
+        token: { type: string }
+        user:
+          type: object
+          required: [id, name, role, institutionId]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            role: { type: string, enum: [INSTITUTION, AICTE, VERIFIER] }
+            institutionId: { type: integer, nullable: true }
+    JsonUploadRequest:
+      type: object
+      required: [fileName, csv]
+      properties:
+        fileName: { type: string, pattern: '^[^\\/:*?"<>|]+\.csv$' }
+        csv: { type: string, maxLength: 5242880 }
+    UploadResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          required: [batchId, flaggedRows, rowIds]
+          properties:
+            batchId: { type: integer }
+            flaggedRows: { type: integer }
+            rowIds: { type: array, items: { type: integer } }
+    Institution:
+      type: object
+      properties:
+        institution_id: { type: integer }
+        aicte_institution_code: { type: string }
+        institution_name: { type: string }
+        campus_code: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        institution_status: { type: string }
+    InstitutionListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data: { type: array, items: { $ref: '#/components/schemas/Institution' } }
+    InstitutionResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Institution' }
+    Programme:
+      type: object
+      properties:
+        programme_id: { type: integer }
+        programme_code: { type: string }
+        programme_name: { type: string }
+        programme_level: { type: string }
+        programme_status: { type: string }
+    ProgrammeListResponse:
+      type: object
+      required: [success, count, data]
+      properties:
+        success: { type: boolean }
+        count: { type: integer }
+        data: { type: array, items: { $ref: '#/components/schemas/Programme' } }
+    Student:
+      type: object
+      properties:
+        student_id: { type: integer }
+        student_name: { type: string }
+        apaar_id_suffix: { type: string, minLength: 4, maxLength: 4 }
+        identity_verification_status: { type: string }
+    StudentListResponse:
+      type: object
+      required: [success, count, data]
+      properties:
+        success: { type: boolean }
+        count: { type: integer }
+        data: { type: array, items: { $ref: '#/components/schemas/Student' } }
+    UploadBatch:
+      type: object
+      properties:
+        batch_id: { type: integer }
+        institution_id: { type: integer }
+        file_name: { type: string }
+        batch_status: { type: string }
+        total_rows: { type: integer }
+    UploadListResponse:
+      type: object
+      required: [success, count, data]
+      properties:
+        success: { type: boolean }
+        count: { type: integer }
+        data: { type: array, items: { $ref: '#/components/schemas/UploadBatch' } }
+    ValidationIssue:
+      type: object
+      properties:
+        issue_id: { type: integer }
+        row_id: { type: integer }
+        issue_code: { type: string }
+        reason: { type: string }
+        severity: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL] }
+        issue_status: { type: string }
+        created_at: { type: string, format: date-time }
+    IssueListResponse:
+      type: object
+      required: [success, count, data]
+      properties:
+        success: { type: boolean }
+        count: { type: integer }
+        data: { type: array, items: { $ref: '#/components/schemas/ValidationIssue' } }
+    IssueResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/ValidationIssue' }
+    CorrectionRequest:
+      type: object
+      required: [apaar_id, student_name, prn]
+      properties:
+        apaar_id: { type: string, pattern: '^\d{12}$' }
+        student_name: { type: string, maxLength: 150 }
+        prn: { type: string, maxLength: 50 }
+    CorrectionResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            issueId: { type: integer }
+            status: { type: string, example: PENDING_REVIEW }
+    Enrolment:
+      type: object
+      properties:
+        enrolment_id: { type: integer }
+        institution_id: { type: integer, nullable: true }
+        programme_id: { type: integer }
+        academic_year: { type: string }
+        admission_category: { type: string }
+        enrolment_status: { type: string }
+    EnrolmentListResponse:
+      type: object
+      required: [success, count, data]
+      properties:
+        success: { type: boolean }
+        count: { type: integer }
+        data: { type: array, items: { $ref: '#/components/schemas/Enrolment' } }
+    EnrolmentResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Enrolment' }
+    AcceptEnrolmentRequest:
+      type: object
+      required: [rowId]
+      properties:
+        rowId: { type: integer, minimum: 1 }
+    ConsentRequest:
+      type: object
+      required: [studentId, purpose]
+      properties:
+        studentId: { type: integer, minimum: 1 }
+        purpose: { type: string, maxLength: 100 }
+        expiresAt: { type: string, format: date-time, nullable: true }
+    Consent:
+      type: object
+      properties:
+        consent_id: { type: integer }
+        student_id: { type: integer }
+        purpose: { type: string }
+        consent_status: { type: string }
+        expires_at: { type: string, format: date-time, nullable: true }
+    ConsentResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Consent' }
+    ConsentRevokeResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            consent_id: { type: integer }
+            consent_status: { type: string }
+            revoked_at: { type: string, format: date-time }
+    VerificationRequest:
+      type: object
+      required: [studentId, consentId]
+      properties:
+        studentId: { type: integer, minimum: 1 }
+        consentId: { type: integer, minimum: 1 }
+    VerificationResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            request_id: { type: integer }
+            student_id: { type: integer }
+            consent_id: { type: integer }
+            request_status: { type: string }
+            verification_result: { type: string }
