@@ -1,7 +1,7 @@
 
 const express = require("express");
 const pool = require("./db/pool");
-
+const requireAuth = require("./middleware/auth");
 const app = express();
 
 app.use(express.json());
@@ -26,7 +26,7 @@ app.get("/api/health/db", async (req, res) => {
 });
 
 // Local development: read institution directory
-app.get("/api/institutions", async (req, res) => {
+app.get("/api/institutions", requireAuth, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT
@@ -54,20 +54,19 @@ app.get("/api/institutions", async (req, res) => {
 
 const uploadsRouter = require("./modules/uploads/uploads.routes");
 
-app.use("/api/uploads", uploadsRouter);
-
-
+app.use("/api/uploads", requireAuth, uploadsRouter);
 const validationsRouter =
     require("./modules/validations/validations.routes");
-
-app.use("/api/validations", validationsRouter);
-
+app.use("/api/validations", requireAuth, validationsRouter);
 
 
 const enrolmentsRouter =
     require("./modules/enrolments/enrolments.routes");
 
-app.use("/api/enrolments", enrolmentsRouter);
+app.use("/api/enrolments", requireAuth, enrolmentsRouter);
+
+
+
 
 
 module.exports = app;
