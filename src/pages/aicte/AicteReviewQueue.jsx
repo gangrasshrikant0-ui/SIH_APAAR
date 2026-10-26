@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
 import { collegeApi } from "../../api/collegeApi";
+import { getBackendReviewQueue, isBackendConfigured, reviewBackendRecord } from "../../api/ingestionApi";
 import {
   StatusBadge,
   SeverityBadge,
@@ -300,12 +301,26 @@ export function AicteReviewQueue() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [sortCol, setSortCol] = useState("severity");
   const [sortDir, setSortDir] = useState("desc");
+  const [backendNotice, setBackendNotice] = useState("");
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await aicteApi.getReviewQueue({ institutionId: institutionFilter, issueType: issueTypeFilter, search: searchQuery });
-      setQueue(data);
+      const localData = await aicteApi.getReviewQueue({ institutionId: institutionFilter, issueType: issueTypeFilter, search: searchQuery });
+      if (isBackendConfigured()) {
+        const backend = await getBackendReviewQueue(institutionFilter);
+        if (backend.offline) {
+          setBackendNotice("Backend offline: using demo data");
+          setQueue(localData);
+        } else {
+          setBackendNotice("");
+          const backendItems = backend.records || [];
+          const merged = [...backendItems, ...localData.filter((item) => !backendItems.some((remote) => remote.id === item.id))];
+          setQueue(merged);
+        }
+      } else {
+        setQueue(localData);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -340,6 +355,10 @@ export function AicteReviewQueue() {
     const note = reviewerNotes[item.id] || "Official transfer/supernumerary documentation verified by Central Reviewer.";
     try {
       await aicteApi.confirmReviewerEvidence(item.batchId, item.id, note);
+      if (isBackendConfigured() && String(item.id).startsWith("INGEST-")) {
+        const sync = await reviewBackendRecord(item.id, "APPROVE", note);
+        if (sync.offline) setActionSuccessMsg("Backend offline: changes not saved to the database");
+      }
       setActionSuccessMsg("Evidence confirmed for " + item.studentName + ". Record moved to READY_TO_ACCEPT.");
       setTimeout(() => setActionSuccessMsg(""), 6000);
       setSelectedCaseId(null);
@@ -353,6 +372,10 @@ export function AicteReviewQueue() {
     const note = reviewerNotes[item.id] || "Insufficient documentation provided. Please reconcile and resubmit.";
     try {
       await aicteApi.sendBackToCollege(item.batchId, item.id, note);
+      if (isBackendConfigured() && String(item.id).startsWith("INGEST-")) {
+        const sync = await reviewBackendRecord(item.id, "RETURN_TO_INSTITUTION", note);
+        if (sync.offline) setActionSuccessMsg("Backend offline: changes not saved to the database");
+      }
       setActionSuccessMsg("Record returned to " + item.institutionName + " as ACTION_REQUIRED.");
       setTimeout(() => setActionSuccessMsg(""), 6000);
       setSelectedCaseId(null);
@@ -388,6 +411,7 @@ export function AicteReviewQueue() {
           <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
             Adjudicate escalated issues, cross-institution conflicts, and excess intake warnings.
           </p>
+              {backendNotice && <p role="status" style={{ color: "#92400E", fontSize: "0.8125rem" }}>{backendNotice}</p>}
         </div>
         <button
           type="button"

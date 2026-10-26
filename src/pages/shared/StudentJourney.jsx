@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { Search, RefreshCw, AlertTriangle } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
 import { collegeApi } from "../../api/collegeApi";
+import { getBackendStudentJourney, isBackendConfigured } from "../../api/ingestionApi";
 
 export function StudentJourney({ role }) {
   const [apaarId, setApaarId] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [backendNotice, setBackendNotice] = useState("");
 
   const search = async (event) => {
     event.preventDefault();
@@ -19,9 +21,18 @@ export function StudentJourney({ role }) {
     }
     setLoading(true);
     try {
-      setResult(role === "AICTE"
-        ? await aicteApi.getStudentJourney(apaarId)
-        : await collegeApi.getStudentJourney(apaarId));
+      if (isBackendConfigured()) {
+        const backend = await getBackendStudentJourney(apaarId, role);
+        if (backend.offline) {
+          setBackendNotice("Backend offline: using demo data");
+          setResult(role === "AICTE" ? await aicteApi.getStudentJourney(apaarId) : await collegeApi.getStudentJourney(apaarId));
+        } else {
+          setBackendNotice("");
+          setResult(backend);
+        }
+      } else {
+        setResult(role === "AICTE" ? await aicteApi.getStudentJourney(apaarId) : await collegeApi.getStudentJourney(apaarId));
+      }
     } catch (searchError) {
       setError(searchError.message || "Unable to search for this APAAR ID.");
     } finally {
@@ -39,6 +50,7 @@ export function StudentJourney({ role }) {
         <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", fontStyle: "italic" }}>
           Prototype: synthetic data. APAAR check is simulated. A correctly formatted APAAR ID is not identity-verified.
         </p>
+        {backendNotice && <p role="status" style={{ color: "#92400E", fontSize: "0.8125rem" }}>{backendNotice}</p>}
       </div>
 
       <form onSubmit={search} className="gov-card" style={{ display: "flex", gap: "0.75rem", alignItems: "end", flexWrap: "wrap", marginBottom: "1.5rem" }}>
@@ -65,7 +77,7 @@ export function StudentJourney({ role }) {
       )}
       {result?.hasActiveElsewhere && (
         <div className="gov-card" role="status" style={{ borderColor: "#F59E0B", background: "#FFFBEB", color: "#92400E", marginBottom: "1rem" }}>
-          <AlertTriangle size={18} /> This APAAR ID has active enrolments at more than one institution. AICTE review required.
+          <AlertTriangle size={18} />           Active enrolment at another institution. AICTE review required.
         </div>
       )}
       {result?.records.length > 0 && (
@@ -90,8 +102,8 @@ export function StudentJourney({ role }) {
           {role === "AICTE" && <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginTop: "1rem" }}>Prototype: synthetic data. APAAR check is simulated. A correctly formatted APAAR ID is not identity-verified.</p>}
         </div>
       )}
-      {result?.hasActiveElsewhere && role === "COLLEGE" && (
-        <div className="gov-card" role="status">This APAAR ID has active enrolment at another institution. AICTE review required.</div>
+      {result?.activeElsewhere && role === "COLLEGE" && (
+        <div className="gov-card" role="status">Active enrolment at another institution. AICTE review required.</div>
       )}
     </div>
   );

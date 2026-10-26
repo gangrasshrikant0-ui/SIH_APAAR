@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { collegeApi } from "../../api/collegeApi";
 import { StatusBadge } from "../../components/StatusBadge";
+import { isBackendConfigured, syncRecordOutcome } from "../../api/ingestionApi";
 
 const PAGE_SIZE = 10;
 
@@ -93,6 +94,14 @@ export function CollegeValidate() {
     setErrorMsg("");
     try {
       const result = await collegeApi.validateStagedRecords(ids);
+      if (isBackendConfigured()) {
+        await Promise.all(result.records.filter((record) => String(record.id).startsWith("INGEST-")).map((record) =>
+          syncRecordOutcome(record.id, record.status, record.issueType ? [{
+            issueType: record.issueType, severity: record.severity, reason: record.reason, field: record.field,
+            responsibleParty: record.owner, requiredAction: record.requiredAction, dueDate: record.dueDate, evidence: record.evidence
+          }] : [])
+        ));
+      }
       setSummary({
         validated: result.validated,
         passed: result.passed,

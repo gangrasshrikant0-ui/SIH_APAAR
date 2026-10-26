@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Building2, CheckCircle2, AlertTriangle, Percent, RefreshCw, Filter, AlertOctagon } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
+import { getBackendDashboard, isBackendConfigured } from "../../api/ingestionApi";
 
 const KPI_STYLE = { minHeight: "132px", display: "flex", flexDirection: "column", justifyContent: "space-between" };
 
@@ -10,11 +11,21 @@ export function AicteDashboard() {
   const [institutionSearch, setInstitutionSearch] = useState("");
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [offlineNotice, setOfflineNotice] = useState("");
 
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      setStats(await aicteApi.getAicteDashboardStats(institutionFilter));
+      const backend = isBackendConfigured() ? await getBackendDashboard("AICTE", institutionFilter) : null;
+      if (backend?.offline) {
+        setOfflineNotice("Backend offline: using demo data");
+        setStats(await aicteApi.getAicteDashboardStats(institutionFilter));
+      } else if (backend) {
+        setOfflineNotice("");
+        setStats(backend);
+      } else {
+        setStats(await aicteApi.getAicteDashboardStats(institutionFilter));
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -22,7 +33,14 @@ export function AicteDashboard() {
     }
   };
 
-  useEffect(() => { loadDashboard(); }, [institutionFilter]);
+  useEffect(() => {
+    loadDashboard();
+    const poll = setInterval(() => { if (!document.hidden) loadDashboard(); }, 15000);
+    const refresh = () => { if (!document.hidden) loadDashboard(); };
+    window.addEventListener("apaar:data-sync", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { clearInterval(poll); window.removeEventListener("apaar:data-sync", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, [institutionFilter]);
 
   if (loading || !stats) {
     return <div className="gov-container" style={{ textAlign: "center", padding: "4rem" }}><RefreshCw size={24} className="spin-slow" /><p>Loading National AICTE Enrolment &amp; Compliance Metrics...</p></div>;
@@ -41,6 +59,7 @@ export function AicteDashboard() {
           <h2 style={{ fontSize: "1.75rem", color: "var(--gov-navy-900)", marginBottom: "0.5rem" }}>National AICTE Intake &amp; Enrolment Dashboard</h2>
           <span className="tag-badge" style={{ background: "#F1F5F9", color: "#475569" }}>Prototype: synthetic data</span>
         </div>
+        {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
           <label className="filter-label" htmlFor="dashboard-institution">Institution</label>
           <select id="dashboard-institution" className="filter-select" value={institutionFilter} onChange={(event) => setInstitutionFilter(event.target.value)}>

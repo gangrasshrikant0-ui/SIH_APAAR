@@ -11,6 +11,7 @@ import { authApi } from "../src/api/authApi.js";
 import { verificationApi } from "../src/api/verificationApi.js";
 import { checkApaar } from "../src/api/apaarApi.js";
 import { repairStoredAcceptedRecords } from "../src/api/collegeApi.js";
+import { storedRecordsOnly } from "../src/api/ingestionApi.js";
 import { getAuditLogs } from "../src/mocks/mockAuditLog.js";
 import {
   COLLEGE_DEFAULT_PATH,
@@ -210,6 +211,44 @@ test("Add Students table: add row, remove row, clear all, max 10", () => {
     createEmptyStudent()
   ];
   assert.equal(rowsReadyToStage(mixed).length, 1);
+});
+
+test("Frontend mirrors only stored ingestion outcomes, not rejected rows", () => {
+  const mirrored = storedRecordsOnly({
+    records: [
+      { id: "INGEST-1", status: "UPLOADED" },
+      { id: "INGEST-2", status: "ACTION_REQUIRED" },
+      { id: "INGEST-3", status: "PENDING_REVIEW" },
+      { id: "REJECTED-4", status: "REJECTED" }
+    ]
+  });
+  assert.deepEqual(mirrored.map((record) => record.id), ["INGEST-1", "INGEST-2", "INGEST-3"]);
+});
+
+test("Server issue remains the single issue after client validation", async () => {
+  await collegeApi.addStudentsToStaging([{
+    id: "INGEST-DEDUPE-1",
+    studentId: "FE-COMP-DEDUPE",
+    studentName: "Server Flagged",
+    apaarId: "123",
+    programme: "Computer Engineering",
+    yearOfStudy: "FE",
+    category: "GENERAL",
+    status: "ACTION_REQUIRED",
+    issues: [{
+      issueType: "WRONG_FORMAT",
+      severity: "HIGH",
+      reason: "Server format issue",
+      evidence: "Server evidence",
+      responsibleParty: "Institution Data Officer",
+      requiredAction: "Correct APAAR ID.",
+      dueDate: "2026-11-01"
+    }]
+  }], "BULK_UPLOAD");
+  const result = await collegeApi.validateStagedRecords(["INGEST-DEDUPE-1"]);
+  const record = result.records.find((item) => item.id === "INGEST-DEDUPE-1");
+  assert.equal(record.issueType, "WRONG_FORMAT");
+  assert.equal(record.status, "ACTION_REQUIRED");
 });
 
 test("Staging save writes UPLOADED MANUAL_ENTRY records and STUDENT_RECORDS_ADDED audit", async () => {

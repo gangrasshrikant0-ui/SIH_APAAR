@@ -27,6 +27,7 @@ import { ExternalVerifierHistory } from "./pages/external/ExternalVerifierHistor
 
 import { getCurrentUser, initializeStore } from "./mocks/mockStore";
 import { repairStoredAcceptedRecords } from "./api/collegeApi";
+import { getBackendMeta, isBackendConfigured } from "./api/ingestionApi";
 
 function ExternalVerifierEntry() {
   const location = useLocation();
@@ -58,6 +59,22 @@ function App() {
   useEffect(() => {
     initializeStore();
     repairStoredAcceptedRecords().catch((error) => console.error("Failed to repair accepted record references", error));
+    if (isBackendConfigured()) {
+      getBackendMeta().then((meta) => {
+        if (!meta?.seedVersion || typeof localStorage === "undefined") return;
+        const key = "apaar_backend_seed_version";
+        const previous = localStorage.getItem(key);
+        if (previous && previous !== meta.seedVersion && !sessionStorage.getItem("apaar_seed_reloaded")) {
+          sessionStorage.setItem("apaar_seed_reloaded", "1");
+          Object.keys(localStorage).filter((keyName) => keyName.startsWith("apaar_")).forEach((keyName) => localStorage.removeItem(keyName));
+          localStorage.setItem(key, meta.seedVersion);
+          window.location.reload();
+        } else {
+          localStorage.setItem(key, meta.seedVersion);
+          sessionStorage.removeItem("apaar_seed_reloaded");
+        }
+      }).catch(() => {});
+    }
   }, []);
 
   return (

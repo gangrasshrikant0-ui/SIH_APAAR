@@ -13,9 +13,12 @@ import {
   FileCheck
 } from "lucide-react";
 import { collegeApi } from "../../api/collegeApi";
+import { ingestStudentsCsv, isBackendConfigured, storedRecordsOnly } from "../../api/ingestionApi";
 import { STANDARD_COLUMNS } from "../../mocks/mockBatches";
 import { StatusBadge } from "../../components/StatusBadge";
 import { CollegeAddStudents } from "./CollegeAddStudents";
+import { getCurrentUser } from "../../mocks/mockStore";
+import { readSheet } from "read-excel-file/browser";
 
 export function CollegeUpload() {
   const navigate = useNavigate();
@@ -29,8 +32,10 @@ export function CollegeUpload() {
   const [fileColumns, setFileColumns] = useState([]);
   const [fileRows, setFileRows] = useState([]);
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [mappingError, setMappingError] = useState("");
   const [mappingBusy, setMappingBusy] = useState(false);
+  const [ingestionSummary, setIngestionSummary] = useState(null);
   const entryMode = searchParams.get("mode") === "manual" ? "manual" : "upload";
 
   // Column mapping states
@@ -81,8 +86,20 @@ export function CollegeUpload() {
   const handleFileSelected = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!/\.csv$/i.test(file.name)) {
-      setMappingError("Unsupported file type. Select a CSV file.");
+    if (!/\.(csv|xlsx)$/i.test(file.name)) {
+      setMappingError("Unsupported file type. Select a CSV or XLSX file.");
+      return;
+    }
+    setSelectedFile(file);
+    if (/\.xlsx$/i.test(file.name)) {
+      readSheet(file).then((rows) => {
+        const headers = (rows.shift() || []).map(String);
+        setFileColumns(headers);
+        setFileRows(rows.filter((row) => row.some(Boolean)));
+        setMapping(autoMap(headers));
+        setSelectedFileName(file.name);
+        setMappingError("");
+      }).catch(() => setMappingError("Unable to read the selected XLSX file."));
       return;
     }
     const reader = new FileReader();
@@ -118,7 +135,34 @@ export function CollegeUpload() {
     try {
       const indexes = Object.fromEntries(Object.entries(mapping).map(([key, value]) => [key, fileColumns.indexOf(value)]));
       const records = fileRows.map((row) => Object.fromEntries(Object.entries(indexes).map(([key, index]) => [key, index >= 0 ? row[index] || "" : ""])));
-      await collegeApi.addStudentsToStaging(records, "BULK_UPLOAD");
+      const csv = [
+        Object.keys(mapping).join(","),
+        ...records.map((record) => Object.keys(mapping).map((key) => JSON.stringify(record[key] || "")).join(","))
+      ].join("\n");
+      if (isBackendConfigured()) {
+        const uploadFile = selectedFile || new File([csv], selectedFileName || "students.csv", { type: "text/csv" });
+        const result = await ingestStudentsCsv(uploadFile, getCurrentUser()?.id || "INST-001", selectedFile ? mapping : null);
+        if (result.offline) {
+          setIngestionSummary({ offline: true });
+          setMappingError("Backend offline: using demo data");
+          await collegeApi.addStudentsToStaging(records, "BULK_UPLOAD");
+        } else {
+          setIngestionSummary(result);
+          const storedRecords = storedRecordsOnly(result);
+          if (storedRecords.length) await collegeApi.addStudentsToStaging(storedRecords, "BULK_UPLOAD");
+        }
+        if (result.offline) {
+          await loadCurrentBatch();
+          navigate("/college/validate");
+          return;
+        }
+        if (result.rejected > 0) {
+          setMappingError("Some rows were rejected. Stored rows are available for validation; review the row-level errors above.");
+          return;
+        }
+      } else {
+        await collegeApi.addStudentsToStaging(records, "BULK_UPLOAD");
+      }
       await loadCurrentBatch();
       setMappingError("");
       navigate("/college/validate");
@@ -251,7 +295,7 @@ export function CollegeUpload() {
               Click to browse or drag & drop CSV file
             </h4>
             <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
-              CSV is supported in this prototype. Excel (.xls/.xlsx) upload is not yet available.
+              CSV and Excel (.xlsx) uploads are supported. Excel files use the first sheet and first row as headers.
             </p>
             <span className="btn btn-secondary btn-sm" style={{ pointerEvents: "none" }}>
               Browse File from Computer
@@ -259,6 +303,16 @@ export function CollegeUpload() {
             </label>
           </div>
           {mappingError && <div role="alert" style={{ color: "#991B1B", background: "#FEE2E2", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>{mappingError}</div>}
+          {ingestionSummary && (
+            <div role="status" style={{ color: "#1E3A8A", background: "#EFF6FF", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
+              {ingestionSummary.offline ? <strong>Backend offline: using demo data</strong> : <><strong>Ingestion result:</strong> {ingestionSummary.storedClean} stored for validation, {ingestionSummary.storedFlagged} flagged, {ingestionSummary.rejected} rejected of {ingestionSummary.total} rows.</>}
+              {ingestionSummary.errors?.length > 0 && (
+                <ul style={{ margin: "0.5rem 0 0 1.25rem" }}>
+                  {ingestionSummary.errors.map((error, index) => <li key={`${error.row}-${error.field}-${index}`}>Row {error.row}{error.field ? ` (${error.field})` : ""}: {error.message}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
           {selectedFileName && (
             <div style={{ border: "1px solid var(--border-light)", borderRadius: "8px", padding: "1rem" }}>
               <strong>{selectedFileName}</strong>

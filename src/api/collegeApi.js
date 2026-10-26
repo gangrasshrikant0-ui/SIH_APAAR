@@ -540,7 +540,7 @@ export const collegeApi = {
 
     const newRecords = studentRecords.map((s, i) => ({
       // Default validation/issue fields — cleared on entry; set after validation
-      id: `MANUAL-${Date.now()}-${i}`,
+      id: s.id || `MANUAL-${Date.now()}-${i}`,
       source,
       institutionId: ownId,
       institutionName: ownName,
@@ -558,16 +558,16 @@ export const collegeApi = {
       gender: s.gender || "",
       admissionDate: s.admissionDate || now.slice(0, 10),
       // Status before validation
-      status: "UPLOADED",
-      issueType: null,
-      issueTitle: null,
-      issueStatus: "PENDING",
-      severity: null,
-      reason: "Awaiting validation.",
-      evidence: "",
-      owner: "Institution Data Officer",
-      requiredAction: "Run Validate Records to check this student entry.",
-      dueDate: "",
+      status: s.status || "UPLOADED",
+      issueType: s.issues?.[0]?.issueType || null,
+      issueTitle: s.issues?.[0]?.issueType || null,
+      issueStatus: s.issues?.length ? "OPEN" : "PENDING",
+      severity: s.issues?.[0]?.severity || null,
+      reason: s.issues?.[0]?.reason || "Awaiting validation.",
+      evidence: s.issues?.[0]?.evidence || "",
+      owner: s.issues?.[0]?.responsibleParty || "Institution Data Officer",
+      requiredAction: s.issues?.[0]?.requiredAction || "Run Validate Records to check this student entry.",
+      dueDate: s.issues?.[0]?.dueDate || "",
       dueDays: null,
       dueDateLabel: "",
       isOverdue: false,
@@ -673,6 +673,21 @@ export const collegeApi = {
         flagged++;
         if (result.newStatus === "PENDING_REVIEW") warnings++;
         else blocking++;
+      }
+      if (record.issueType && result.updatedRecord.issueType !== record.issueType) {
+        return {
+          ...record,
+          status: record.status,
+          issueType: record.issueType,
+          issueTitle: record.issueTitle,
+          issueStatus: record.issueStatus,
+          severity: record.severity,
+          reason: record.reason,
+          evidence: record.evidence,
+          owner: record.owner,
+          requiredAction: record.requiredAction,
+          dueDate: record.dueDate
+        };
       }
       return { ...record, ...result.updatedRecord };
     });

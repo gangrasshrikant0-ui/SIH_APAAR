@@ -1,0 +1,6 @@
+PRN,Student Full Name,APAAR ID (12 Digits),Degree & Programme,Academic Year of Study,Seat Category,NRI,OCI,FN,Supernumerary Seats
+DEMO-FAULT-001,Missing Apaar,,Computer Engineering,Year 1,GENERAL,no,no,no,0
+DEMO-FAULT-002,Bad Apaar,12345678901,Computer Engineering,Year 1,GENERAL,no,no,no,0
+DEMO-FAULT-003,Duplicate One,222233334444,Computer Engineering,Year 1,GENERAL,no,no,no,0
+DEMO-FAULT-004,Duplicate Two,222233334444,Information Technology,Year 1,GENERAL,no,no,no,0
+DEMO-FAULT-005,Foreign Match,333344445555,Computer Engineering,Year 1,GENERAL,no,no,no,0

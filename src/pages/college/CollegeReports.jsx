@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FileText,
   Download,
@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { collegeApi } from "../../api/collegeApi";
+import { getBackendDashboard, getBackendReport, isBackendConfigured } from "../../api/ingestionApi";
 
 export function CollegeReports() {
   const [downloadSuccess, setDownloadSuccess] = useState("");
@@ -17,10 +18,39 @@ export function CollegeReports() {
   const [certificateRecord, setCertificateRecord] = useState(null);
   const [certificateError, setCertificateError] = useState("");
   const [copiedReference, setCopiedReference] = useState("");
+  const [backendReport, setBackendReport] = useState(null);
+  const [offlineNotice, setOfflineNotice] = useState("");
+
+  const loadBackendReport = async () => {
+    if (!isBackendConfigured()) return;
+    const result = await getBackendReport("INSTITUTION");
+    if (result?.offline) {
+      setOfflineNotice("Backend offline: using demo data");
+    } else {
+      setOfflineNotice("");
+      setBackendReport(result);
+    }
+  };
+
+  useEffect(() => {
+    loadBackendReport().catch((error) => console.error(error));
+    const poll = setInterval(() => { if (!document.hidden) loadBackendReport().catch((error) => console.error(error)); }, 15000);
+    const refresh = () => { if (!document.hidden) loadBackendReport().catch((error) => console.error(error)); };
+    window.addEventListener("apaar:data-sync", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { clearInterval(poll); window.removeEventListener("apaar:data-sync", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, []);
 
   const handleDownloadIntakeCSV = async () => {
     try {
-      const csvText = await collegeApi.exportIntakeCSV("INST-001");
+      let csvText;
+      if (backendReport?.rows) {
+        const headers = "Institution,Programme,Year,Approved Intake,Actual Enrolment,Accepted Enrolment,Utilisation %,Category Counts,Supernumerary Seats\n";
+        const rows = backendReport.rows.map((row) => `"${row.institution}","${row.programmeName}","${row.year}",${row.approvedIntake},${row.acceptedEnrolment},${row.acceptedEnrolment},"${row.utilisation}%","${row.programmeName}",${row.supernumerarySeats || ""}`).join("\n");
+        csvText = headers + rows;
+      } else {
+        csvText = await collegeApi.exportIntakeCSV("INST-001");
+      }
       const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -53,7 +83,9 @@ export function CollegeReports() {
 
   // Printable PDF view
   const handlePrintReport = async (type) => {
-    const stats = await collegeApi.getDashboardStats();
+    const stats = backendReport?.rows
+      ? await getBackendDashboard("INSTITUTION").then((result) => result?.offline ? collegeApi.getDashboardStats() : result)
+      : await collegeApi.getDashboardStats();
     setPrintableReport({
       type,
       title: type === "INTAKE" ? "Official Enrolment & Intake Compliance Report" : "Unresolved Data Anomalies Audit Report",
@@ -103,6 +135,7 @@ export function CollegeReports() {
           Prototype CSV and printable exports for AICTE accreditation, annual reporting, and university audit workflows. No live submission to those systems is configured.
         </p>
       </div>
+      {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
 
       {downloadSuccess && (
         <div style={{ background: "#DCFCE7", border: "1px solid #86EFAC", color: "#166534", padding: "0.85rem 1rem", borderRadius: "8px", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>

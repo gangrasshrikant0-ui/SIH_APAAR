@@ -15,6 +15,7 @@ import {
   Sliders
 } from "lucide-react";
 import { collegeApi } from "../../api/collegeApi";
+import { acceptBackendRecord, isBackendConfigured } from "../../api/ingestionApi";
 import { StatusBadge, SeverityBadge, OverdueBadge, EscalatedBadge } from "../../components/StatusBadge";
 import { FixRecordModal } from "../../components/FixRecordModal";
 
@@ -85,6 +86,16 @@ export function CollegeWorkbench() {
     if (!batchInfo || batchInfo.readyCount === 0) return;
     setAcceptingRecords(true);
     try {
+      if (isBackendConfigured()) {
+        const ready = await collegeApi.getIssues({ status: "READY_TO_ACCEPT" });
+        for (const record of ready.records.filter((item) => String(item.id).startsWith("INGEST-"))) {
+          const result = await acceptBackendRecord(record.id);
+          if (result.offline) {
+            setActionSuccessMsg("Backend offline: changes not saved to the database");
+            break;
+          }
+        }
+      }
       const res = await collegeApi.acceptBatchRecords(batchInfo.batchId);
       setActionSuccessMsg(`Successfully accepted ${res.newlyAcceptedCount} validated records into Central Repository. Invalid rows remain pending correction.`);
       setTimeout(() => setActionSuccessMsg(""), 6000);

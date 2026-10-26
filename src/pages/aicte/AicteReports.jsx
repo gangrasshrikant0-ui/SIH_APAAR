@@ -5,6 +5,7 @@ import {
   AlertTriangle, X, ChevronRight
 } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
+import { getBackendReport, isBackendConfigured } from "../../api/ingestionApi";
 
 // ─── CSV helpers ────────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ function DownloadCsvButton({ rowCount, filtersActive, onClick, disabled }) {
 function AuditTrailView() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [offlineNotice, setOfflineNotice] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [actionFilter, setActionFilter] = useState("ALL");
@@ -467,8 +469,16 @@ function IntakeReportView() {
   const loadRows = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await aicteApi.getIntakeReportRows();
-      setRows(data);
+      const backend = isBackendConfigured() ? await getBackendReport("AICTE") : null;
+      if (backend?.offline) {
+        setOfflineNotice("Backend offline: using demo data");
+        setRows(await aicteApi.getIntakeReportRows());
+      } else if (backend) {
+        setOfflineNotice("");
+        setRows(backend.rows);
+      } else {
+        setRows(await aicteApi.getIntakeReportRows());
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -478,6 +488,11 @@ function IntakeReportView() {
 
   useEffect(() => {
     loadRows();
+    const poll = setInterval(() => { if (!document.hidden) loadRows(); }, 15000);
+    const refresh = () => { if (!document.hidden) loadRows(); };
+    window.addEventListener("apaar:data-sync", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { clearInterval(poll); window.removeEventListener("apaar:data-sync", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, [loadRows]);
 
   // Unique lists for dropdowns
@@ -548,6 +563,7 @@ function IntakeReportView() {
           marginBottom: "1.5rem"
         }}
       >
+        {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
         <div>
           <Link
             to="/aicte/reports"

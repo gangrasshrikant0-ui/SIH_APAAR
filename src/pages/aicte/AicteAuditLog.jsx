@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { History, Search, Filter, ShieldCheck, RefreshCw, AlertTriangle, Lock } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
+import { getBackendAudit, isBackendConfigured } from "../../api/ingestionApi";
 
 export function AicteAuditLog() {
   const [logs, setLogs] = useState([]);
@@ -8,12 +9,23 @@ export function AicteAuditLog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState("ALL");
   const [actionFilter, setActionFilter] = useState("ALL");
+  const [backendNotice, setBackendNotice] = useState("");
 
   const loadLogs = async () => {
     setLoading(true);
     try {
-      const data = await aicteApi.getAuditTrail();
-      setLogs(data);
+      const local = await aicteApi.getAuditTrail();
+      if (isBackendConfigured()) {
+        const backend = await getBackendAudit();
+        if (backend.offline) {
+          setBackendNotice("Backend offline: using demo data");
+          setLogs(local);
+        } else {
+          setBackendNotice("");
+          const remote = backend.records || [];
+          setLogs([...remote, ...local.filter((entry) => !remote.some((item) => item.actionType === entry.actionType && item.timestamp === entry.timestamp))].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+        }
+      } else setLogs(local);
     } catch (e) {
       console.error(e);
     } finally {
@@ -50,12 +62,13 @@ export function AicteAuditLog() {
               Statutory Compliance & Security Audit Log
             </h2>
             <span className="tag-badge" style={{ background: "#F1F5F9", color: "#475569" }}>
-              Immutable AICTE Trail
+              AUDIT TRAIL (PROTOTYPE)
             </span>
           </div>
           <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
             Cryptographically indexed historical record of who, what, when, and changes across all institutions.
           </p>
+          {backendNotice && <p role="status" style={{ color: "#92400E", fontSize: "0.8125rem" }}>{backendNotice}</p>}
         </div>
 
         <button
@@ -119,6 +132,8 @@ export function AicteAuditLog() {
             <option value="RECORDS_ACCEPTED">Batch Acceptance</option>
             <option value="AICTE_EVIDENCE_CONFIRMED">Evidence Confirmed</option>
             <option value="AICTE_SENT_BACK_TO_COLLEGE">Returned to College</option>
+            <option value="APAAR_LOOKUP">APAAR Lookup</option>
+            <option value="STUDENT_RECORDS_ADDED">Student Records Added</option>
           </select>
         </div>
       </div>

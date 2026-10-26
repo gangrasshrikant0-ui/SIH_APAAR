@@ -17,14 +17,18 @@ import {
 } from "lucide-react";
 import { collegeApi } from "../../api/collegeApi";
 import { StatusBadge } from "../../components/StatusBadge";
+import { getBackendDashboard, isBackendConfigured } from "../../api/ingestionApi";
 
 export function CollegeDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [offlineNotice, setOfflineNotice] = useState("");
 
   const loadStats = async () => {
     try {
-      const data = await collegeApi.getDashboardStats();
+      const backend = isBackendConfigured() ? await getBackendDashboard("INSTITUTION") : null;
+      const data = backend?.offline || !backend ? await collegeApi.getDashboardStats() : backend;
+      setOfflineNotice(backend?.offline ? "Backend offline: using demo data" : "");
       setStats(data);
     } catch (e) {
       console.error(e);
@@ -35,6 +39,11 @@ export function CollegeDashboard() {
 
   useEffect(() => {
     loadStats();
+    const poll = setInterval(() => { if (!document.hidden) loadStats(); }, 15000);
+    const refresh = () => { if (!document.hidden) loadStats(); };
+    window.addEventListener("apaar:data-sync", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { clearInterval(poll); window.removeEventListener("apaar:data-sync", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, []);
 
   if (loading || !stats) {
@@ -59,6 +68,7 @@ export function CollegeDashboard() {
               Own Data Only &bull; PICT
             </span>
           </div>
+          {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
           <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
             Refreshable prototype compliance monitoring against the AICTE Approval Master rulebook. Data is synthetic and local; only accepted records count toward enrolment.
           </p>

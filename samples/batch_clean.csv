@@ -1,0 +1,4 @@
+PRN,Student Full Name,APAAR ID (12 Digits),Degree & Programme,Academic Year of Study,Seat Category,NRI,OCI,FN,Supernumerary Seats
+DEMO-CLEAN-001,Asha Rao,111122223333,Computer Engineering,Year 1,GENERAL,no,no,no,0
+DEMO-CLEAN-002,Rohan Shah,111122223334,Information Technology,Year 1,OBC,no,no,no,0
+DEMO-CLEAN-003,Meera Nair,111122223335,Artificial Intelligence & Data Science,Year 1,NRI_FN,yes,no,no,1

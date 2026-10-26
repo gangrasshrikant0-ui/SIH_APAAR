@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, CheckCircle2, AlertTriangle, RefreshCw, FileText, Sparkles, ShieldCheck } from "lucide-react";
 import { collegeApi } from "../api/collegeApi";
 import { StatusBadge, SeverityBadge } from "./StatusBadge";
+import { correctBackendRecord, isBackendConfigured } from "../api/ingestionApi";
 
 export function FixRecordModal({ record, batchId, onClose, onFixed }) {
   const [apaarId, setApaarId] = useState(record.apaarId || "");
@@ -36,6 +37,12 @@ export function FixRecordModal({ record, batchId, onClose, onFixed }) {
     setRevalidationResult(null);
 
     try {
+      if (isBackendConfigured() && String(record.id).startsWith("INGEST-")) {
+        const backendResult = await correctBackendRecord(record.id, { apaarId, studentId, programme, category, transferProof });
+        if (backendResult.offline) {
+          setErrorMsg("Backend offline: changes not saved to the database");
+        }
+      }
       const res = await collegeApi.fixAndRevalidateRecord(batchId, record.id, {
         apaarId,
         studentId,

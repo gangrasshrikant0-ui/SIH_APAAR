@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
+import { getBackendRepository, isBackendConfigured } from "../../api/ingestionApi";
 
 const PAGE_SIZE = 10;
 
@@ -13,12 +14,18 @@ export function AicteRepository() {
   const [year, setYear] = useState("ALL");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [offlineNotice, setOfflineNotice] = useState("");
 
   useEffect(() => {
     let active = true;
-    Promise.all([aicteApi.getAcceptedRepository(), aicteApi.getAicteDashboardStats("ALL")]).then(([data, stats]) => {
+    Promise.all([aicteApi.getAcceptedRepository(), aicteApi.getAicteDashboardStats("ALL"), isBackendConfigured() ? getBackendRepository() : Promise.resolve(null)]).then(([data, stats, backend]) => {
       if (active) {
-        setRecords(data);
+        const merged = [...data];
+        for (const record of backend?.records || []) {
+          if (!merged.some((item) => item.id === record.id)) merged.push(record);
+        }
+        if (backend?.offline) setOfflineNotice("Backend offline: using demo data");
+        setRecords(merged);
         setDashboardStats(stats);
         setLoading(false);
       }
@@ -68,6 +75,7 @@ export function AicteRepository() {
         <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", fontStyle: "italic" }}>
           Prototype: local synthetic data only. This screen demonstrates the intended repository hand-off; it is not a live AICTE system connection.
         </p>
+        {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>

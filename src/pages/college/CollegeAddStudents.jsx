@@ -5,6 +5,7 @@ import {
   Trash2, Plus, RefreshCw, ArrowRight
 } from "lucide-react";
 import { collegeApi } from "../../api/collegeApi";
+import { ingestStudent, isBackendConfigured, storedRecordsOnly } from "../../api/ingestionApi";
 import { getCurrentUser } from "../../mocks/mockStore";
 import {
   MAX_STUDENT_ROWS,
@@ -33,6 +34,7 @@ function SingleStudentForm({ institution, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({});
   const [saveError, setSaveError] = useState("");
+  const [backendNotice, setBackendNotice] = useState("");
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
   const touch = (key) => setTouched((t) => ({ ...t, [key]: true }));
@@ -43,10 +45,20 @@ function SingleStudentForm({ institution, onSaved }) {
     setSaveError("");
     setSaving(true);
     try {
-      const res = await collegeApi.addStudentsToStaging([form], "MANUAL_ENTRY");
+      const currentUser = getCurrentUser();
+      const res = isBackendConfigured()
+        ? await ingestStudent(form, currentUser?.id || "INST-001")
+        : await collegeApi.addStudentsToStaging([form], "MANUAL_ENTRY");
+      if (res.offline) {
+        setBackendNotice("Backend offline: using demo data");
+        await collegeApi.addStudentsToStaging([form], "MANUAL_ENTRY");
+      }
+      if (isBackendConfigured() && !res.offline) {
+        await collegeApi.addStudentsToStaging([form], "MANUAL_ENTRY");
+      }
       setForm({ ...createEmptyStudent() });
       setTouched({});
-      onSaved(res.addedCount);
+      onSaved(res.offline ? 1 : (res.storedClean || 0) + (res.storedFlagged || 0) || res.addedCount);
     } catch (err) {
       setSaveError(err.message || "Save failed.");
     } finally {
@@ -170,6 +182,7 @@ function SingleStudentForm({ institution, onSaved }) {
       {saveError && (
         <p role="alert" style={{ color: "#DC2626", fontSize: "0.875rem", marginBottom: "0.75rem" }}>{saveError}</p>
       )}
+      {backendNotice && <p role="status" style={{ color: "#92400E", fontSize: "0.8125rem", marginBottom: "0.75rem" }}>{backendNotice}</p>}
 
       <button type="submit" className="btn btn-primary" disabled={saving} aria-busy={saving}>
         {saving ? <><RefreshCw size={14} className="spin-slow" /><span>Saving…</span></> : <><CheckCircle2 size={14} /><span>Save to staging</span></>}
@@ -183,6 +196,7 @@ function MultiStudentForm({ institution, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({});
   const [saveError, setSaveError] = useState("");
+  const [backendNotice, setBackendNotice] = useState("");
 
   const addRow = () => setRows((r) => addStudentRow(r));
   const removeRow = (idx) => setRows((r) => removeStudentRow(r, idx));
@@ -210,10 +224,26 @@ function MultiStudentForm({ institution, onSaved }) {
 
     setSaving(true);
     try {
-      const res = await collegeApi.addStudentsToStaging(toSave, "MANUAL_ENTRY");
-      setRows(clearStudentRows());
+      const currentUser = getCurrentUser();
+      const backendResults = isBackendConfigured()
+        ? await Promise.allSettled(toSave.map((student) => ingestStudent(student, currentUser?.id || "INST-001")))
+        : [];
+      const offline = backendResults.some((result) => result.status === "fulfilled" && result.value.offline);
+      if (offline) {
+        setBackendNotice("Backend offline: using demo data");
+        await collegeApi.addStudentsToStaging(toSave, "MANUAL_ENTRY");
+      } else {
+        const successful = backendResults
+          .filter((result) => result.status === "fulfilled" && storedRecordsOnly(result.value).length)
+          .flatMap((result) => storedRecordsOnly(result.value));
+        if (successful.length) await collegeApi.addStudentsToStaging(successful, "MANUAL_ENTRY");
+        const failedIndexes = new Set(backendResults.flatMap((result, index) => result.status === "rejected" ? [index] : []));
+        if (failedIndexes.size) setSaveError("Some rows were rejected. Correct the highlighted rows and try again.");
+        setRows((current) => current.filter((_, index) => failedIndexes.has(index)));
+      }
+      if (offline || !backendResults.some((result) => result.status === "rejected")) setRows(clearStudentRows());
       setTouched({});
-      onSaved(res.addedCount);
+      onSaved(backendResults.length ? backendResults.filter((result) => result.status === "fulfilled" && result.value.records?.length).length : toSave.length);
     } catch (err) {
       setSaveError(err.message || "Save failed.");
     } finally {
@@ -393,6 +423,7 @@ function MultiStudentForm({ institution, onSaved }) {
       {saveError && (
         <p role="alert" style={{ color: "#DC2626", fontSize: "0.875rem", marginBottom: "0.75rem" }}>{saveError}</p>
       )}
+      {backendNotice && <p role="status" style={{ color: "#92400E", fontSize: "0.8125rem", marginBottom: "0.75rem" }}>{backendNotice}</p>}
 
       <button type="submit" className="btn btn-primary" disabled={saving} aria-busy={saving}>
         {saving
