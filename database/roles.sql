@@ -31,5 +31,12 @@ BEGIN
     ) THEN
         CREATE ROLE apaar_readonly NOLOGIN;
     END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_roles
+        WHERE rolname = 'apaar_api_a'
+    ) THEN
+        CREATE ROLE apaar_api_a NOLOGIN;
+    END IF;
 END
 $$;

@@ -1,0 +1,103 @@
+openapi: 3.0.3
+info:
+  title: APAAR Student Data API
+  version: 1.0.0
+  description: Synthetic-data API for institution-scoped student data workflows.
+servers:
+  - url: http://127.0.0.1:5000
+paths:
+  /api/auth/login:
+    post:
+      summary: Authenticate an active account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Signed access token
+        '400':
+          description: Invalid input
+        '401':
+          description: Invalid or inactive credentials
+        '429':
+          description: Too many attempts
+  /api/institutions:
+    get:
+      security:
+        - bearerAuth: []
+      summary: List permitted institutions
+      responses:
+        '200':
+          description: Institution data
+        '401':
+          description: Authentication required
+  /api/institutions/me:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Retrieve the authenticated institution
+      responses:
+        '200':
+          description: Institution profile
+        '401':
+          description: Authentication required
+  /api/institutions/me/programmes:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Retrieve programmes for the authenticated institution
+      responses:
+        '200':
+          description: Programme data
+  /api/students:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Retrieve institution-scoped students
+      responses:
+        '200':
+          description: Student data with masked APAAR identifiers
+  /api/uploads:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Retrieve institution-scoped upload batches
+      responses:
+        '200':
+          description: Upload batches
+  /api/validations/issues:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Retrieve institution-scoped validation issues
+      responses:
+        '200':
+          description: Validation issues
+  /api/enrolments:
+    get:
+      security:
+        - bearerAuth: []
+      summary: Retrieve institution-scoped enrolments
+      responses:
+        '200':
+          description: Enrolment data
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
