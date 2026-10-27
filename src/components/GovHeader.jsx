@@ -8,6 +8,8 @@ export function GovHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = getCurrentUser();
+  const isPublicRoute = location.pathname === "/" || location.pathname === "/roles" || location.pathname.startsWith("/login/");
+  const isCollegePortal = location.pathname.startsWith("/college");
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -20,6 +22,24 @@ export function GovHeader() {
       window.location.reload();
     }
   };
+
+  if (isCollegePortal) {
+    if (!currentUser || currentUser.role !== "COLLEGE") return null;
+    return (
+      <header className="college-auth-header">
+        <div className="college-auth-header-inner">
+          <Link to="/college/upload" className="college-auth-brand" aria-label="College portal home">
+            <Building2 size={20} />
+            <span>{currentUser.institutionName}</span>
+          </Link>
+          <button type="button" onClick={handleLogout} className="btn btn-secondary btn-sm">
+            <LogOut size={14} />
+            Logout
+          </button>
+        </div>
+      </header>
+    );
+  }
 
   const getRoleBadge = () => {
     if (!currentUser) return null;
@@ -52,7 +72,6 @@ export function GovHeader() {
 
   return (
     <header className="gov-header">
-      <div className="gov-tricolor-accent"></div>
       <div className="gov-container gov-header-inner">
         {/* Brand / Logo */}
         <Link to="/" className="gov-brand" aria-label="Go to APAAR Platform Home">
@@ -60,9 +79,9 @@ export function GovHeader() {
             <span>AP</span>
           </div>
           <div className="gov-brand-titles">
-            <span className="gov-brand-super">AICTE Higher Education Layer</span>
-            <span className="gov-brand-main">APAAR Student Data Platform</span>
-            <span className="gov-brand-sub">Validation, Monitoring & Verification</span>
+            <span className="gov-brand-super">Academic Data Verification</span>
+            <span className="gov-brand-main">EDUVÉRIFY</span>
+            <span className="gov-brand-sub">Trusted records. Clear decisions.</span>
           </div>
         </Link>
 
@@ -70,28 +89,8 @@ export function GovHeader() {
         <nav aria-label="Main Navigation">
           <ul className={`gov-nav-links ${mobileMenuOpen ? "mobile-open" : ""}`}>
             <li>
-              <a href="/#about" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
-                About
-              </a>
-            </li>
-            <li>
-              <a href="/#benefits" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
-                Benefits
-              </a>
-            </li>
-            <li>
-              <a href="/#how-it-works" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
-                How It Works
-              </a>
-            </li>
-            <li>
-              <a href="/#faqs" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
-                FAQs
-              </a>
-            </li>
-            <li>
-              <Link to="/external/verify" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
-                Verify a Record
+              <Link to="/roles" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
+                Role Portals
               </Link>
             </li>
           </ul>
@@ -99,7 +98,7 @@ export function GovHeader() {
 
         {/* User Role & Actions */}
         <div className="gov-auth-strip">
-          {currentUser ? (
+          {currentUser && !isPublicRoute ? (
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
               {getRoleBadge()}
               
@@ -114,12 +113,6 @@ export function GovHeader() {
                   AICTE Portal
                 </Link>
               )}
-              {currentUser.role === "EXTERNAL_VERIFIER" && (
-                <Link to="/external/verify" className="btn btn-secondary btn-sm" title="Verify one record">
-                  Verify a Record
-                </Link>
-              )}
-
               <button
                 type="button"
                 onClick={handleLogout}
@@ -133,9 +126,9 @@ export function GovHeader() {
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <a href="/#logins" className="btn btn-primary btn-sm">
-                Login / Portals
-              </a>
+              <Link to="/roles" className="btn btn-primary btn-sm">
+                Role Portals
+              </Link>
             </div>
           )}
 

@@ -225,12 +225,6 @@ a:hover {
   z-index: 50;
 }
 
-.gov-tricolor-accent {
-  height: 3px;
-  background: linear-gradient(90deg, #FF9933 0%, #FF9933 33.3%, #E2E8F0 33.3%, #E2E8F0 66.6%, #138808 66.6%, #138808 100%);
-  width: 100%;
-}
-
 .gov-header-inner {
   display: flex;
   justify-content: space-between;
@@ -823,9 +817,9 @@ a:hover {
 .gov-footer {
   background-color: #0B192C;
   color: #94A3B8;
-  padding: 3rem 0 1.5rem 0;
-  margin-top: 4rem;
-  border-top: 3px solid var(--gov-navy-700);
+  padding: 1.5rem 0;
+  margin-top: 3rem;
+  border-top: 1px solid var(--border-light);
 }
 
 .gov-footer a {
@@ -833,6 +827,463 @@ a:hover {
 }
 .gov-footer a:hover {
   color: #FFFFFF;
+}
+
+.gov-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  font-size: 0.8125rem;
+}
+
+.gov-footer-inner strong {
+  color: #FFFFFF;
+  letter-spacing: 0.04em;
+}
+
+.gov-footer-disclaimer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.college-auth-header {
+  border-bottom: 1px solid var(--border-light);
+  background: #FFFFFF;
+}
+
+.college-auth-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+}
+
+.college-auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  color: var(--gov-navy-900);
+  font-weight: 750;
+}
+
+.college-auth-brand span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.college-portal-shell {
+  display: flex;
+  align-items: stretch;
+  min-height: calc(100vh - 130px);
+  background: var(--bg-app);
+}
+
+.college-sidebar {
+  flex: 0 0 238px;
+  padding: 1.5rem 0.85rem;
+  background: #FFFFFF;
+  border-right: 1px solid var(--border-light);
+}
+
+.college-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.college-sidebar .portal-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--gov-navy-700);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.college-sidebar .portal-tab:hover {
+  background: var(--gov-blue-50);
+  text-decoration: none;
+}
+
+.college-sidebar .portal-tab.active {
+  color: var(--gov-navy-900);
+  background: var(--gov-blue-100);
+  border-color: #BFDBFE;
+}
+
+.college-portal-content {
+  flex: 1;
+  min-width: 0;
+  padding: 2rem 0;
+}
+
+.workbench-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.workbench-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: #FFFFFF;
+  box-shadow: var(--shadow-card);
+}
+
+.workbench-summary-card span {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.workbench-summary-card strong {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.workbench-summary-card small {
+  color: var(--text-muted);
+}
+
+.workbench-summary-card a {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.workbench-summary-card.unresolved {
+  border-left: 4px solid #DC2626;
+}
+
+.workbench-summary-card.unresolved strong {
+  color: #B91C1C;
+}
+
+.workbench-summary-card.resolved {
+  border-left: 4px solid #15803D;
+}
+
+.workbench-summary-card.resolved strong {
+  color: #15803D;
+}
+
+.student-certificate-section {
+  margin-top: 2rem;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 1.25rem;
+}
+
+.section-heading .role-card-icon {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+.section-heading h2 {
+  margin-bottom: 0.25rem;
+  font-size: 1.2rem;
+}
+
+.section-heading p {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.certificate-lookup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.certificate-lookup-form label {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.certificate-lookup-controls {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.certificate-lookup-controls input {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.certificate-error,
+.certificate-message {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.certificate-error {
+  color: #991B1B;
+  background: #FEF2F2;
+}
+
+.certificate-message {
+  color: #92400E;
+  background: #FFFBEB;
+}
+
+.certificate-result {
+  margin-top: 1.25rem;
+}
+
+.certificate-result dl {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) 1.2fr;
+  gap: 0.6rem 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.certificate-result dt {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.certificate-result dd {
+  margin: 0;
+}
+
+.certificate-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.certificate-print-preview {
+  display: none;
+}
+
+.landing-page,
+.roles-page,
+.login-page {
+  min-height: 28rem;
+}
+
+.landing-hero {
+  display: flex;
+  align-items: center;
+  min-height: 30rem;
+  padding: 6rem 0;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+}
+
+.landing-hero-content {
+  text-align: center;
+  max-width: 760px;
+}
+
+.landing-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+  color: var(--gov-navy-600);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.landing-hero h1 {
+  margin-bottom: 1rem;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  letter-spacing: -0.03em;
+}
+
+.landing-hero p {
+  max-width: 620px;
+  margin: 0 auto 2rem;
+  color: var(--text-muted);
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+
+.roles-page,
+.login-page {
+  padding: 4rem 0;
+}
+
+.page-heading {
+  margin: 0 auto 2.5rem;
+  text-align: center;
+}
+
+.page-heading .landing-eyebrow {
+  margin-bottom: 0.5rem;
+}
+
+.page-heading h1 {
+  margin-bottom: 0.5rem;
+}
+
+.page-heading p:last-child {
+  color: var(--text-muted);
+}
+
+.role-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 290px;
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.role-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 1.25rem;
+  border-radius: 12px;
+  color: var(--gov-navy-700);
+  background: var(--gov-blue-100);
+}
+
+.role-card-college .role-card-icon {
+  color: #166534;
+  background: #DCFCE7;
+}
+
+.role-card-external .role-card-icon {
+  color: #7C2D12;
+  background: #FFEDD5;
+}
+
+.role-card h2 {
+  margin-bottom: 0.65rem;
+  font-size: 1.2rem;
+}
+
+.role-card p {
+  flex: 1;
+  margin-bottom: 1.5rem;
+  color: var(--text-muted);
+}
+
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.login-card {
+  width: min(100%, 440px);
+  padding: 2rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.login-card h1 {
+  margin-bottom: 0.5rem;
+}
+
+.login-subtitle,
+.demo-hint {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.login-subtitle {
+  margin-bottom: 1.5rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.login-form label {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.login-form button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.login-error {
+  margin-bottom: 1rem;
+  padding: 0.7rem;
+  border: 1px solid #FCA5A5;
+  border-radius: var(--radius-sm);
+  color: #991B1B;
+  background: #FEE2E2;
+  font-size: 0.875rem;
+}
+
+.demo-hint {
+  margin-top: 1rem;
+  text-align: center;
 }
 
 /* Responsive Utilities */
@@ -854,5 +1305,42 @@ a:hover {
   }
   .filter-group {
     min-width: 100%;
+  }
+
+  .role-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .college-portal-shell {
+    display: block;
+  }
+
+  .college-sidebar {
+    padding: 0.75rem 1rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .college-sidebar-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: static;
+  }
+
+  .college-portal-content {
+    padding: 1.25rem 0;
+  }
+
+  .workbench-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .college-auth-header-inner {
+    padding: 0.75rem 1rem;
+  }
+
+  .landing-hero {
+    min-height: 24rem;
+    padding: 4rem 0;
   }
 }

@@ -17,7 +17,7 @@ export function ExternalVerifierLayout() {
 
       <nav className="portal-tabs" aria-label="External Verifier navigation">
         <NavLink to="/external/verify" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
-          1. Verify a Record
+          1. Record Review
         </NavLink>
         <NavLink to="/external/history" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
           2. My Verification History

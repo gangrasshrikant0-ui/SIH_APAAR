@@ -182,6 +182,14 @@ export const collegeApi = {
       return getPriority(b) - getPriority(a);
     });
 
+    const allBatchRecords = batch.records || [];
+    const unresolvedIssueCount = allBatchRecords.filter((record) =>
+      record.issueType && (record.status === "ACTION_REQUIRED" || record.status === "PENDING_REVIEW")
+    ).length;
+    const resolvedIssueCount = allBatchRecords.filter((record) =>
+      record.issueType && (record.issueStatus === "RESOLVED" || record.status === "READY_TO_ACCEPT" || record.status === "ACCEPTED")
+    ).length;
+
     return {
       batchId: batch.batchId,
       batchStatus: batch.status,
@@ -189,6 +197,8 @@ export const collegeApi = {
       flaggedCount: batch.flaggedRowsCount,
       readyCount: batch.readyToAcceptCount,
       acceptedCount: batch.acceptedCount,
+      unresolvedIssueCount,
+      resolvedIssueCount,
       records
     };
   },
@@ -434,7 +444,7 @@ export const collegeApi = {
   async exportIntakeCSV(requestedInstitutionId = "INST-001") {
     const currentUser = getCurrentUser();
     // Security Guard: College can only download its own data
-    if (currentUser?.role === "COLLEGE" && requestedInstitutionId !== "INST-001") {
+    if (currentUser?.role === "COLLEGE" && requestedInstitutionId !== currentUser.id) {
       logAuditEvent({
         actorName: currentUser.name,
         actorRole: currentUser.role,
@@ -466,7 +476,7 @@ export const collegeApi = {
   // Export Anomaly Report (CSV) with multi-institution isolation check
   async exportAnomaliesCSV(requestedInstitutionId = "INST-001") {
     const currentUser = getCurrentUser();
-    if (currentUser?.role === "COLLEGE" && requestedInstitutionId !== "INST-001") {
+    if (currentUser?.role === "COLLEGE" && requestedInstitutionId !== currentUser.id) {
       logAuditEvent({
         actorName: currentUser.name,
         actorRole: currentUser.role,
@@ -490,6 +500,32 @@ export const collegeApi = {
       .join("\n");
 
     return headers + anomalyRows;
+  },
+
+  async exportCompleteCSV(requestedInstitutionId = "INST-001") {
+    const currentUser = getCurrentUser();
+    if (currentUser?.role === "COLLEGE" && requestedInstitutionId !== currentUser.id) {
+      throw new Error("Access Denied: Institutions are restricted to their own complete report.");
+    }
+    const batch = getActiveBatch();
+    const headers = "Batch,Row,Student Name,PRN,APAAR ID,Programme,Year,Issue Type,Severity,Reason,Owner,Status,Issue Status,Due Date\n";
+    const rows = (batch.records || []).map((record, index) => [
+      batch.batchId,
+      index + 1,
+      record.studentName,
+      record.studentId,
+      record.apaarId || "MISSING",
+      record.programme,
+      record.yearOfStudy,
+      record.issueType || "",
+      record.severity || "",
+      record.reason || "",
+      record.owner || "",
+      record.status,
+      record.issueStatus || "",
+      record.dueDate || ""
+    ].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
+    return headers + rows;
   },
 
   // ─── Staging helpers ──────────────────────────────────────────────────────

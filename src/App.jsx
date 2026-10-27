@@ -1,11 +1,12 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { TopGovStrip } from "./components/TopGovStrip";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { GovHeader } from "./components/GovHeader";
 import { GovFooter } from "./components/GovFooter";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 import { LandingPage } from "./pages/LandingPage";
+import { RoleSelectionPage } from "./pages/RoleSelectionPage";
+import { LoginPage } from "./pages/LoginPage";
 import { CollegeLayout } from "./pages/college/CollegeLayout";
 import { CollegeUpload } from "./pages/college/CollegeUpload";
 import { CollegeWorkbench } from "./pages/college/CollegeWorkbench";
@@ -28,18 +29,6 @@ import { ExternalVerifierHistory } from "./pages/external/ExternalVerifierHistor
 import { getCurrentUser, initializeStore } from "./mocks/mockStore";
 import { repairStoredAcceptedRecords } from "./api/collegeApi";
 import { getBackendMeta, isBackendConfigured } from "./api/ingestionApi";
-
-function ExternalVerifierEntry() {
-  const location = useLocation();
-  const currentUser = getCurrentUser();
-  const target = `/external/verify?reference=${encodeURIComponent(location.pathname.split("/").pop() || "")}`;
-
-  if (!currentUser) {
-    return <Navigate to={`/?returnTo=${encodeURIComponent(target)}`} replace />;
-  }
-
-  return <Navigate to={target} replace />;
-}
 
 function LegacyStudentRoute() {
   const currentUser = getCurrentUser();
@@ -80,9 +69,6 @@ function App() {
   return (
     <BrowserRouter>
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        {/* Government UX4G Accessibility Top Strip */}
-        <TopGovStrip />
-
         {/* Government Header with Logo & Role Controls */}
         <GovHeader />
 
@@ -91,6 +77,8 @@ function App() {
           <Routes>
             {/* Public Landing Page */}
             <Route path="/" element={<LandingPage />} />
+            <Route path="/roles" element={<RoleSelectionPage />} />
+            <Route path="/login/:role" element={<LoginPage />} />
 
             {/* College Portal Protected Routes */}
             <Route
@@ -144,10 +132,6 @@ function App() {
               <Route path="verify" element={<ExternalVerifierVerify />} />
               <Route path="history" element={<ExternalVerifierHistory />} />
             </Route>
-
-            {/* Existing QR/link entry point now requires External Verifier login */}
-            <Route path="/verify/:token" element={<ExternalVerifierEntry />} />
-            <Route path="/verify" element={<Navigate to="/" replace />} />
 
             {/* Removed Student portal URLs */}
             <Route path="/student/*" element={<LegacyStudentRoute />} />

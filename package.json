@@ -15,7 +15,6 @@
     "test:backend": "node --test tests/backendIngestion.test.js"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
     "csv-parse": "^7.0.3",
     "express": "^5.3.0",

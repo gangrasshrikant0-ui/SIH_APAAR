@@ -3,6 +3,7 @@ import { Search, RefreshCw, AlertTriangle } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
 import { collegeApi } from "../../api/collegeApi";
 import { getBackendStudentJourney, isBackendConfigured } from "../../api/ingestionApi";
+import { StudentCertificate } from "../../components/StudentCertificate";
 
 export function StudentJourney({ role }) {
   const [apaarId, setApaarId] = useState("");
@@ -105,6 +106,7 @@ export function StudentJourney({ role }) {
       {result?.activeElsewhere && role === "COLLEGE" && (
         <div className="gov-card" role="status">Active enrolment at another institution. AICTE review required.</div>
       )}
+      {role === "COLLEGE" && <StudentCertificate />}
     </div>
   );
 }

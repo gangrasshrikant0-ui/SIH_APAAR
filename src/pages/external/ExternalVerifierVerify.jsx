@@ -43,7 +43,7 @@ export function ExternalVerifierVerify() {
     <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 520px) minmax(280px, 1fr)", gap: "1.5rem", alignItems: "start" }}>
       <section className="gov-card" aria-labelledby="verify-record-title">
         <h2 id="verify-record-title" style={{ fontSize: "1.25rem", color: "var(--gov-navy-900)", marginBottom: "1rem" }}>
-          Verify a Record
+          Record Review
         </h2>
         <form onSubmit={handleVerify} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div>

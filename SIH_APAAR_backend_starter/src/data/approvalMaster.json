@@ -1,0 +1,91 @@
+{
+  "academicYear": "2026-2027",
+  "mode": "SYNTHETIC_DEMO_ONLY",
+  "institutions": [
+    {
+      "id": "INST-001",
+      "aicteId": "AICTE-1-1029384",
+      "name": "Pune Institute of Computer Technology (PICT)",
+      "programmes": [
+        {
+          "code": "COMP",
+          "name": "Computer Engineering",
+          "approvedIntake": 120,
+          "supernumerarySeats": {
+            "EWS": 12,
+            "TFWS": 6,
+            "NRI_FN": 5
+          }
+        },
+        {
+          "code": "IT",
+          "name": "Information Technology",
+          "approvedIntake": 120,
+          "supernumerarySeats": {
+            "EWS": 12,
+            "TFWS": 6,
+            "NRI_FN": 5
+          }
+        },
+        {
+          "code": "ENTC",
+          "name": "Electronics & Telecommunication Engineering",
+          "approvedIntake": 120,
+          "supernumerarySeats": {
+            "EWS": 12,
+            "TFWS": 6,
+            "NRI_FN": 5
+          }
+        },
+        {
+          "code": "AIDS",
+          "name": "Artificial Intelligence & Data Science",
+          "approvedIntake": 60,
+          "supernumerarySeats": {
+            "EWS": 6,
+            "TFWS": 3,
+            "NRI_FN": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "INST-002",
+      "aicteId": "AICTE-1-1099231",
+      "name": "College of Engineering Pune (COEP Technological University)",
+      "programmes": [
+        {
+          "code": "COMP",
+          "name": "Computer Engineering",
+          "approvedIntake": 150,
+          "supernumerarySeats": {
+            "NRI_FN": 10
+          }
+        },
+        {
+          "code": "MECH",
+          "name": "Mechanical Engineering",
+          "approvedIntake": 120,
+          "supernumerarySeats": {
+            "NRI_FN": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "INST-003",
+      "aicteId": "AICTE-1-1088421",
+      "name": "Veermata Jijabai Technological Institute (VJTI Mumbai)",
+      "programmes": [
+        {
+          "code": "COMP",
+          "name": "Computer Engineering",
+          "approvedIntake": 120,
+          "supernumerarySeats": {
+            "NRI_FN": 5
+          }
+        }
+      ]
+    }
+  ]
+}

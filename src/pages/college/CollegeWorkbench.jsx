@@ -62,7 +62,9 @@ export function CollegeWorkbench() {
         totalRows: data.totalRows,
         flaggedCount: data.flaggedCount,
         readyCount: data.readyCount,
-        acceptedCount: data.acceptedCount
+        acceptedCount: data.acceptedCount,
+        unresolvedIssueCount: data.unresolvedIssueCount,
+        resolvedIssueCount: data.resolvedIssueCount
       });
     } catch (e) {
       console.error(e);
@@ -190,6 +192,21 @@ export function CollegeWorkbench() {
           <Link to="/college/upload" className="btn btn-secondary btn-sm">
             <span>Upload New Batch</span>
           </Link>
+        </div>
+      </div>
+
+      <div className="workbench-summary-grid">
+        <div className="workbench-summary-card unresolved">
+          <span>Issues Yet to Be Resolved</span>
+          <strong>{batchInfo?.unresolvedIssueCount ?? 0}</strong>
+          <small>Records requiring correction or review</small>
+          <Link to="/college/workbench?status=ACTION_REQUIRED">View affected records</Link>
+        </div>
+        <div className="workbench-summary-card resolved">
+          <span>Issues Resolved</span>
+          <strong>{batchInfo?.resolvedIssueCount ?? 0}</strong>
+          <small>Corrected or accepted issue records</small>
+          <Link to="/college/reports">View resolution reports</Link>
         </div>
       </div>
 

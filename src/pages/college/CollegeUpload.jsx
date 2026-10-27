@@ -231,7 +231,7 @@ export function CollegeUpload() {
 
   const handleFileDrop = (e) => {
     e.preventDefault();
-    handleLoadFaultyPreset();
+    // handleLoadFaultyPreset();
   };
 
   return (
@@ -302,7 +302,7 @@ export function CollegeUpload() {
             </span>
             </label>
           </div>
-          {mappingError && <div role="alert" style={{ color: "#991B1B", background: "#FEE2E2", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>{mappingError}</div>}
+          {mappingError && (<div role="alert" style={{ color: "#991B1B", background: "#FEE2E2", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>{mappingError}</div>)}
           {ingestionSummary && (
             <div role="status" style={{ color: "#1E3A8A", background: "#EFF6FF", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
               {ingestionSummary.offline ? <strong>Backend offline: using demo data</strong> : <><strong>Ingestion result:</strong> {ingestionSummary.storedClean} stored for validation, {ingestionSummary.storedFlagged} flagged, {ingestionSummary.rejected} rejected of {ingestionSummary.total} rows.</>}
@@ -327,8 +327,8 @@ export function CollegeUpload() {
             </div>
           )}
 
-          {/* Quick Simulation Presets */}
-          <div style={{ background: "#F1F5F9", borderRadius: "8px", padding: "1rem", border: "1px solid var(--border-light)" }}>
+          
+          {/* Quick evaluation presets */}
             <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--gov-navy-800)", display: "block", marginBottom: "0.5rem", textTransform: "uppercase" }}>
               Quick Evaluation Presets (Smart India Hackathon 2026):
             </span>
@@ -353,7 +353,6 @@ export function CollegeUpload() {
                 <span>Load Clean Batch</span>
               </button>
             </div>
-          </div>
         </div>
 
         {/* Column Mapping Preview Card */}
