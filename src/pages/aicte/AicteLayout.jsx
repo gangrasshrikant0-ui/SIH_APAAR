@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { ShieldCheck, LayoutDashboard, AlertCircle, FileText, Route, Database } from "lucide-react";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { ShieldCheck, LayoutDashboard, AlertCircle, FileText, Route, Database, UserPlus, LogOut } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
+import { authApi } from "../../api/authApi";
 import { getCurrentUser } from "../../mocks/mockStore";
 
 export function AicteLayout() {
   const currentUser = getCurrentUser();
   const location = useLocation();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+
+  const handleLogout = async () => {
+    await authApi.logout();
+    navigate("/");
+  };
 
   const refreshStats = async () => {
     try {
@@ -50,78 +57,102 @@ export function AicteLayout() {
             </div>
 
             {/* Quick Metrics Badges */}
-            {stats && (
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
-                  <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>Pending Review</span>
-                  <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#FDE047" }}>
-                    {stats.totalPendingReview}
-                  </span>
-                </div>
-                <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
-                  <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>Escalated Cases</span>
-                  <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#FCA5A5" }}>
-                    {stats.totalEscalated}
-                  </span>
-                </div>
-                <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
-                  <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>Accepted Enrolment</span>
-                  <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#86EFAC" }}>
-                    {stats.totalAcceptedEnrolment}
-                  </span>
-                </div>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
+                <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>PICT Enrolled</span>
+                <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#86EFAC" }}>30</span>
               </div>
-            )}
+              <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
+                <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>Unique by APAAR</span>
+                <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#FDE68A" }}>{stats?.uniqueStudentsByApaar ?? 18}</span>
+              </div>
+              <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
+                <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>Active Students</span>
+                <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#FCA5A5" }}>30</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.45rem",
+                  background: "rgba(255, 255, 255, 0.08)",
+                  color: "#FFFFFF",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  borderRadius: "8px",
+                  padding: "0.55rem 0.9rem",
+                  cursor: "pointer",
+                  fontWeight: "700"
+                }}
+              >
+                <LogOut size={15} />
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Subnav Tabs */}
-      <div className="portal-subnav">
-        <div className="gov-container portal-subnav-inner">
-          <nav className="portal-tabs" aria-label="AICTE Portal Sections">
-            <NavLink
-              to="/aicte/dashboard"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <LayoutDashboard size={16} />
-              <span>1. National Dashboard</span>
-            </NavLink>
+      <div className="gov-container" style={{ marginTop: "1.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "280px minmax(0, 1fr)", gap: "1.5rem", alignItems: "flex-start" }}>
+          <aside className="gov-card" style={{ padding: "1rem 0.75rem" }}>
+            <div style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", fontWeight: 700, padding: "0 0.75rem 0.75rem" }}>AICTE Bureau</div>
+            <nav className="portal-tabs" aria-label="AICTE Portal Sections" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <NavLink
+                to="/aicte/dashboard"
+                className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
+                style={{ justifyContent: "flex-start" }}
+              >
+                <LayoutDashboard size={16} />
+                <span>National Dashboard</span>
+              </NavLink>
 
-            <NavLink
-              to="/aicte/repository"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <Database size={16} />
-              <span>2. Central Repository</span>
-            </NavLink>
-            <NavLink to="/aicte/reports" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
-              <FileText size={16} />
-              <span>3. National Reports</span>
-            </NavLink>
-            <NavLink to="/aicte/workbench" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
-              <AlertCircle size={16} />
-              <span>4. Review Queue</span>
-              {stats?.totalEscalated > 0 && (
-                <span style={{ background: "#DC2626", color: "#FFF", borderRadius: "9999px", padding: "1px 6px", fontSize: "0.7rem", fontWeight: "bold" }}>
-                  {stats.totalEscalated}
-                </span>
-              )}
-            </NavLink>
-            <NavLink
-              to="/aicte/student-journey"
-              className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
-            >
-              <Route size={16} />
-              <span>5. Student Journey</span>
-            </NavLink>
-          </nav>
+              <NavLink
+                to="/aicte/repository"
+                className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
+                style={{ justifyContent: "flex-start" }}
+              >
+                <Database size={16} />
+                <span>Central Repository</span>
+              </NavLink>
+              <NavLink to="/aicte/workbench" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`} style={{ justifyContent: "flex-start" }}>
+                <AlertCircle size={16} />
+                <span>Review Queue</span>
+                {stats?.totalEscalated > 0 && (
+                  <span style={{ background: "#DC2626", color: "#FFF", borderRadius: "9999px", padding: "1px 6px", fontSize: "0.7rem", fontWeight: "bold" }}>
+                    {stats.totalEscalated}
+                  </span>
+                )}
+              </NavLink>
+              <NavLink to="/aicte/audit-rails" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`} style={{ justifyContent: "flex-start" }}>
+                <FileText size={16} />
+                <span>Compliance Ledger</span>
+              </NavLink>
+              <NavLink
+                to="/aicte/create-user"
+                className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
+                style={{ justifyContent: "flex-start" }}
+              >
+                <UserPlus size={16} />
+                <span>Create User</span>
+              </NavLink>
+              <NavLink
+                to="/aicte/student-journey"
+                className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}
+                style={{ justifyContent: "flex-start" }}
+              >
+                <Route size={16} />
+                <span>Student Journey</span>
+              </NavLink>
+            </nav>
+          </aside>
+
+          <main style={{ minWidth: 0 }}>
+            <Outlet context={{ refreshStats, stats }} />
+          </main>
         </div>
       </div>
-
-      <main style={{ padding: "2rem 0" }}>
-        <Outlet context={{ refreshStats, stats }} />
-      </main>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export function LandingPage() {
             records against approved academic data standards.
           </p>
           <Link to="/roles" className="btn btn-primary btn-lg">
-            Access Role Portals
+            Choose your portal
             <ArrowRight size={18} />
           </Link>
         </div>

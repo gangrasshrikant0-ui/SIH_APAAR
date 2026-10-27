@@ -251,7 +251,7 @@ test("Server issue remains the single issue after client validation", async () =
   assert.equal(record.status, "ACTION_REQUIRED");
 });
 
-test("Staging save writes UPLOADED MANUAL_ENTRY records and STUDENT_RECORDS_ADDED audit", async () => {
+test("Staging save validates MANUAL_ENTRY records and writes the STUDENT_RECORDS_ADDED audit", async () => {
   const beforeStats = await collegeApi.getDashboardStats();
   const res = await collegeApi.addStudentsToStaging(
     [{
@@ -271,8 +271,12 @@ test("Staging save writes UPLOADED MANUAL_ENTRY records and STUDENT_RECORDS_ADDE
 
   const staged = await collegeApi.getStagedRecords({ source: "MANUAL_ENTRY", search: "FE-COMP-901" });
   assert.equal(staged.records.length, 1);
-  assert.equal(staged.records[0].status, "UPLOADED");
+  assert.equal(staged.records[0].status, "ACTION_REQUIRED");
   assert.equal(staged.records[0].source, "MANUAL_ENTRY");
+  assert.ok(
+    staged.records[0].issueLedger.some((issue) => issue.issueType === "MISSING_MANDATORY_FIELD"),
+    "Missing required DOB must be flagged during staging"
+  );
 
   const afterStats = await collegeApi.getDashboardStats();
   assert.equal(afterStats.acceptedEnrolment, beforeStats.acceptedEnrolment, "Staged rows must not change accepted enrolment");

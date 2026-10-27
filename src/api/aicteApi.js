@@ -145,6 +145,104 @@ export const aicteApi = {
     return { records, hasActiveElsewhere: activeInstitutions.size > 1 };
   },
 
+  async createCollegeUser({ aicteNo, collegeName, email, issuingAuthority }) {
+    if (!aicteNo || !collegeName || !email) {
+      throw new Error("AICTE number, college name and email are required.");
+    }
+	const shortName = collegeName
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("")
+      .slice(0, 6) || "CLG";
+    const suffix = String(aicteNo).slice(-4) || "0000";
+    const username = `${shortName}${suffix}`.toLowerCase();
+    const password = Array.from({ length: 10 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+    const operationId = `AUD-${Date.now().toString().slice(-8)}`;
+    const issueAuthorityName = issuingAuthority || getCurrentUser()?.name || "AICTE Reviewer";
+
+    logAuditEvent({
+      actorName: issueAuthorityName,
+      actorRole: "AICTE",
+      actorEmail: getCurrentUser()?.email || "aicte.central@gov.in",
+      actionType: "USER_CREATED",
+      resourceType: "COLLEGE_ACCOUNT",
+      resourceId: aicteNo,
+      details: `College user created for ${collegeName} (${email}). Username generated as ${username}.`,
+      changeSummary: `Credentials issued to ${collegeName} via self-service user generation.`,
+      severity: "INFO",
+      issuingAuthority: issueAuthorityName,
+      operationId,
+      actorId: getCurrentUser()?.id || "AICTE-CENTRAL"
+    });
+
+    return {
+      username,
+      password,
+      email,
+      collegeName,
+      aicteNo,
+      issuingAuthority: issueAuthorityName,
+      operationId,
+      delivered: true
+    };
+  },
+
+  async notifyCollegeIssue({ institutionId, institutionName, issueTitle, issueType, message, batchId }) {
+    const currentUser = getCurrentUser();
+    const notice = {
+      id: `AICTE-NOTICE-${Date.now()}`,
+      title: "High-priority institutional review alert",
+      body: message || `Please review and update the flagged ${issueTitle || issueType} data before revalidation.`,
+      audience: "COLLEGE",
+      category: "AICTE",
+      institutionId,
+      institutionName,
+      issueId: issueType || "AICTE-NOTICE",
+      href: `/college/workbench?batch=${encodeURIComponent(batchId || "")}`,
+      createdAt: new Date().toISOString(),
+      read: false,
+      priority: 1
+    };
+
+    const existing = JSON.parse(localStorage.getItem("apaar_notifications") || "[]");
+    existing.unshift(notice);
+    localStorage.setItem("apaar_notifications", JSON.stringify(existing));
+
+    const batches = getStoredBatches();
+    Object.values(batches).forEach((batch) => {
+      if (batch.institutionId !== institutionId) return;
+      (batch.records || []).forEach((record) => {
+        const shouldExpose = record.status === "PENDING_REVIEW" || record.isEscalated || record.isOverdue || record.issueType === "CROSS_INSTITUTION_CONFLICT" || record.issueType === "INTAKE_EXCEEDED";
+        if (shouldExpose) {
+          record.visibleToCollege = true;
+          record.collegeNotificationSent = true;
+          record.notificationSentAt = new Date().toISOString();
+          record.issueStatus = record.issueStatus || "OPEN";
+        }
+      });
+      batch.records = batch.records || [];
+      saveBatch(batch);
+    });
+
+    logAuditEvent({
+      actorName: currentUser?.name || "AICTE Reviewer",
+      actorRole: currentUser?.role || "AICTE",
+      actorEmail: currentUser?.email || "aicte.central@gov.in",
+      actionType: "AICTE_NOTIFICATION_SENT",
+      resourceType: "COLLEGE_NOTICE",
+      resourceId: institutionId,
+      details: `High-priority AICTE alert sent to ${institutionName} for issue ${issueTitle || issueType}.`,
+      changeSummary: `Institution notified to verify and correct the flagged records.`,
+      severity: "HIGH",
+      issuingAuthority: currentUser?.name || "AICTE Reviewer",
+      operationId: `OPS-${Date.now().toString().slice(-8)}`,
+      actorId: currentUser?.id || "AICTE-CENTRAL"
+    });
+
+    return notice;
+  },
+
   // AICTE Review Queue: Escalated & Cross-Institution Cases across all institutions
   async getReviewQueue({ institutionId = "ALL", issueType = "ALL", search = "" } = {}) {
     await new Promise((res) => setTimeout(res, 80));

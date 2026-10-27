@@ -22,7 +22,7 @@ export function CollegeReports() {
     if (!isBackendConfigured()) return;
     const result = await getBackendReport("INSTITUTION");
     if (result?.offline) {
-      setOfflineNotice("Backend offline: using demo data");
+      setOfflineNotice("Connection unavailable; showing locally available records.");
     } else {
       setOfflineNotice("");
       setBackendReport(result);
@@ -114,7 +114,7 @@ export function CollegeReports() {
           Institutional Compliance Reports & Data Exports
         </h2>
         <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
-          Prototype CSV and printable exports for AICTE accreditation, annual reporting, and university audit workflows. No live submission to those systems is configured.
+          CSV and printable exports for accreditation, annual reporting, and university audit workflows. No live submission to those systems is configured.
         </p>
       </div>
       {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
@@ -180,10 +180,6 @@ export function CollegeReports() {
               <Download size={14} />
               <span>Download Anomalies CSV</span>
             </button>
-            <button type="button" className="btn btn-primary" onClick={handleDownloadCompleteCSV}>
-              <Download size={14} />
-              <span>Download Complete Report</span>
-            </button>
             <button
               type="button"
               className="btn btn-secondary"
@@ -193,6 +189,22 @@ export function CollegeReports() {
               <span>Printable View (PDF)</span>
             </button>
           </div>
+        </div>
+
+        <div className="gov-card">
+          <div style={{ width: "48px", height: "48px", borderRadius: "10px", background: "#DBEAFE", color: "#1D4ED8", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem" }}>
+            <FileText size={24} />
+          </div>
+          <h3 style={{ fontSize: "1.15rem", color: "var(--gov-navy-900)", marginBottom: "0.5rem" }}>
+            Complete Validation Report
+          </h3>
+          <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1.25rem", lineHeight: "1.5" }}>
+            Download the complete student validation and issue-status report for this institution.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={handleDownloadCompleteCSV}>
+            <Download size={14} />
+            <span>Download Complete Report</span>
+          </button>
         </div>
       </div>
 
@@ -208,10 +220,10 @@ export function CollegeReports() {
                 {printableReport.title}
               </h2>
               <div style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginTop: "4px" }}>
-                Institution: <strong>Pune Institute of Computer Technology (PICT)</strong> &bull; AICTE ID: <strong>AICTE-1-1029384</strong>
+                Institution: <strong>{institutionName}</strong> &bull; Institution ID: <strong>{institutionId}</strong>
               </div>
               <div style={{ fontSize: "0.75rem", color: "var(--text-dim)", marginTop: "2px" }}>
-                Generated: {printableReport.generatedAt} &bull; Prototype Setting
+                Generated: {printableReport.generatedAt}
               </div>
             </div>
 

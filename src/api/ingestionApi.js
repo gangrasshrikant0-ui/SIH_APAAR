@@ -119,6 +119,18 @@ export async function correctBackendRecord(id, fields) {
   });
 }
 
+export async function saveBackendRecordDraft(id, fields) {
+  return requestOrOffline(async () => {
+    const user = getCurrentUser();
+    const response = await fetch(`${API_BASE_URL}/students/${id}/draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(user?.id, "INSTITUTION") },
+      body: JSON.stringify(fields)
+    });
+    return notifyDataSync(await readResponse(response));
+  });
+}
+
 export async function acceptBackendRecord(id) {
   return requestOrOffline(async () => {
     const user = getCurrentUser();

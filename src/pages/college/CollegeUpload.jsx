@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import {
   UploadCloud,
@@ -19,6 +19,7 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { CollegeAddStudents } from "./CollegeAddStudents";
 import { getCurrentUser } from "../../mocks/mockStore";
 import { readSheet } from "read-excel-file/browser";
+import { parse } from "csv-parse/browser/esm/sync";
 
 export function CollegeUpload() {
   const navigate = useNavigate();
@@ -36,7 +37,9 @@ export function CollegeUpload() {
   const [mappingError, setMappingError] = useState("");
   const [mappingBusy, setMappingBusy] = useState(false);
   const [ingestionSummary, setIngestionSummary] = useState(null);
+  const [uploadSummary, setUploadSummary] = useState(null);
   const entryMode = searchParams.get("mode") === "manual" ? "manual" : "upload";
+  const hiddenPreset = searchParams.get("preset");
 
   // Column mapping states
   const [mapping, setMapping] = useState({
@@ -52,7 +55,7 @@ export function CollegeUpload() {
     admissionDate: "Date of Admission"
   });
 
-  const loadCurrentBatch = async () => {
+  const loadCurrentBatch = useCallback(async () => {
     setIsLoading(true);
     try {
       const batch = await collegeApi.getActiveBatch();
@@ -62,19 +65,30 @@ export function CollegeUpload() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadCurrentBatch();
-  }, []);
+  }, [loadCurrentBatch]);
+
+  useEffect(() => {
+    if (hiddenPreset === "faulty") handleLoadFaultyPreset();
+    if (hiddenPreset === "clean") handleLoadCleanPreset();
+  }, [hiddenPreset]);
 
   const parseCsv = (text) => {
-    const lines = text.split(/\r?\n/).filter((line) => line.trim());
-    if (!lines.length) throw new Error("The selected CSV is empty.");
-    const parseLine = (line) => line.split(",").map((value) => value.trim().replace(/^"|"$/g, ""));
-    const headers = parseLine(lines[0]);
+    const [headerRow, ...rows] = parse(text, {
+      bom: true,
+      skip_empty_lines: true,
+      trim: true
+    });
+    if (!headerRow?.length) throw new Error("The selected CSV is empty.");
+    const headers = headerRow.map((value) => String(value).trim());
     if (headers.some((header) => !header)) throw new Error("The CSV header row contains an empty column.");
-    return { headers, rows: lines.slice(1).map(parseLine).filter((row) => row.some(Boolean)) };
+    return {
+      headers,
+      rows: rows.filter((row) => row.some((value) => String(value).trim()))
+    };
   };
 
   const autoMap = (headers) => Object.fromEntries(STANDARD_COLUMNS.map((column) => {
@@ -134,7 +148,10 @@ export function CollegeUpload() {
     setMappingBusy(true);
     try {
       const indexes = Object.fromEntries(Object.entries(mapping).map(([key, value]) => [key, fileColumns.indexOf(value)]));
-      const records = fileRows.map((row) => Object.fromEntries(Object.entries(indexes).map(([key, index]) => [key, index >= 0 ? row[index] || "" : ""])));
+      const records = fileRows.map((row) => Object.fromEntries(Object.entries(indexes).map(([key, index]) => {
+        const value = index >= 0 ? row[index] || "" : "";
+        return [key, value instanceof Date ? value.toISOString().slice(0, 10) : value];
+      })));
       const csv = [
         Object.keys(mapping).join(","),
         ...records.map((record) => Object.keys(mapping).map((key) => JSON.stringify(record[key] || "")).join(","))
@@ -144,7 +161,7 @@ export function CollegeUpload() {
         const result = await ingestStudentsCsv(uploadFile, getCurrentUser()?.id || "INST-001", selectedFile ? mapping : null);
         if (result.offline) {
           setIngestionSummary({ offline: true });
-          setMappingError("Backend offline: using demo data");
+          setMappingError("Backend unavailable; file records were staged locally.");
           await collegeApi.addStudentsToStaging(records, "BULK_UPLOAD");
         } else {
           setIngestionSummary(result);
@@ -152,8 +169,15 @@ export function CollegeUpload() {
           if (storedRecords.length) await collegeApi.addStudentsToStaging(storedRecords, "BULK_UPLOAD");
         }
         if (result.offline) {
-          await loadCurrentBatch();
-          navigate("/college/validate");
+          const batch = await collegeApi.getActiveBatch();
+          setActiveBatch(batch);
+          setUploadSummary({
+            fileName: selectedFileName,
+            addedCount: records.length,
+            flaggedRowsCount: batch.flaggedRowsCount,
+            clean: batch.flaggedRowsCount === 0
+          });
+          setMappingError("");
           return;
         }
         if (result.rejected > 0) {
@@ -163,9 +187,15 @@ export function CollegeUpload() {
       } else {
         await collegeApi.addStudentsToStaging(records, "BULK_UPLOAD");
       }
-      await loadCurrentBatch();
+      const batch = await collegeApi.getActiveBatch();
+      setActiveBatch(batch);
+      setUploadSummary({
+        fileName: selectedFileName,
+        addedCount: records.length,
+        flaggedRowsCount: batch.flaggedRowsCount,
+        clean: true
+      });
       setMappingError("");
-      navigate("/college/validate");
     } catch (error) {
       setMappingError(error.message || "Unable to stage the mapped records.");
     } finally {
@@ -184,6 +214,13 @@ export function CollegeUpload() {
     setTimeout(async () => {
       const batch = await collegeApi.loadPresetBatch("FAULTY");
       setActiveBatch(batch);
+      setUploadSummary({
+        fileName: batch.fileName,
+        addedCount: batch.totalRows,
+        flaggedRowsCount: batch.flaggedRowsCount,
+        clean: batch.flaggedRowsCount === 0,
+        preset: true
+      });
       setValidationStage("DONE");
       setIsUploading(false);
       if (refreshStats) refreshStats();
@@ -201,6 +238,13 @@ export function CollegeUpload() {
     setTimeout(async () => {
       const batch = await collegeApi.loadPresetBatch("CLEAN");
       setActiveBatch(batch);
+      setUploadSummary({
+        fileName: batch.fileName,
+        addedCount: batch.totalRows,
+        flaggedRowsCount: batch.flaggedRowsCount,
+        clean: true,
+        preset: true
+      });
       setValidationStage("DONE");
       setIsUploading(false);
       if (refreshStats) refreshStats();
@@ -208,6 +252,7 @@ export function CollegeUpload() {
   };
 
   const handleDownloadSampleCsv = () => {
+    const institutionName = getCurrentUser()?.institutionName || "Institution";
     const csvContent = "data:text/csv;charset=utf-8," +
       "PRN,Student Full Name,APAAR ID (12 Digits),Degree & Programme,Academic Year of Study,Seat Category,OCI Status,Foreign National Status,Supernumerary Seats,Date of Admission\n" +
       "SE-COMP-001,Aarav Sharma,111122223333,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-01\n" +
@@ -223,7 +268,10 @@ export function CollegeUpload() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "PICT_Faulty_Sample_Batch_SIH2026.csv");
+    link.setAttribute(
+      "download",
+      `${institutionName.replace(/[^A-Za-z0-9]+/g, "_")}_Student_Batch_Sample.csv`
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -242,7 +290,7 @@ export function CollegeUpload() {
           Batch Upload & Data Ingestion
         </h2>
         <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)", maxWidth: "840px" }}>
-          Demo CSV ingestion and column mapping for student admissions data. The platform runs automated rule-based checks against synthetic AICTE Approval Master data; no live ERP connection is configured.
+          Upload and map student admission data into the institutional record schema. Submitted records are checked against approved academic rules; no live ERP connection is configured.
         </p>
       </div>
       <div className="filter-bar" role="tablist" aria-label="Ingestion mode" style={{ marginBottom: "1.25rem" }}>
@@ -264,7 +312,7 @@ export function CollegeUpload() {
               type="button"
               className="btn btn-secondary btn-sm"
               onClick={handleDownloadSampleCsv}
-              title="Download sample CSV with synthetic SIH records"
+              title="Download a sample CSV"
             >
               <Download size={13} />
               <span>Sample CSV</span>
@@ -286,7 +334,7 @@ export function CollegeUpload() {
               transition: "all 0.2s ease"
             }}
           >
-            <input type="file" accept=".csv,text/csv" onChange={handleFileSelected} style={{ display: "none" }} id="student-csv-file" />
+            <input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={handleFileSelected} style={{ display: "none" }} id="student-csv-file" />
             <label htmlFor="student-csv-file" style={{ cursor: "pointer", display: "block" }}>
             <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "#EFF6FF", color: "#2563EB", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem auto" }}>
               <UploadCloud size={26} />
@@ -305,7 +353,7 @@ export function CollegeUpload() {
           {mappingError && (<div role="alert" style={{ color: "#991B1B", background: "#FEE2E2", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>{mappingError}</div>)}
           {ingestionSummary && (
             <div role="status" style={{ color: "#1E3A8A", background: "#EFF6FF", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
-              {ingestionSummary.offline ? <strong>Backend offline: using demo data</strong> : <><strong>Ingestion result:</strong> {ingestionSummary.storedClean} stored for validation, {ingestionSummary.storedFlagged} flagged, {ingestionSummary.rejected} rejected of {ingestionSummary.total} rows.</>}
+              {ingestionSummary.offline ? <strong>Backend unavailable; records were staged locally.</strong> : <><strong>Ingestion result:</strong> {ingestionSummary.storedClean} stored for validation, {ingestionSummary.storedFlagged} flagged, {ingestionSummary.rejected} rejected of {ingestionSummary.total} rows.</>}
               {ingestionSummary.errors?.length > 0 && (
                 <ul style={{ margin: "0.5rem 0 0 1.25rem" }}>
                   {ingestionSummary.errors.map((error, index) => <li key={`${error.row}-${error.field}-${index}`}>Row {error.row}{error.field ? ` (${error.field})` : ""}: {error.message}</li>)}
@@ -327,32 +375,6 @@ export function CollegeUpload() {
             </div>
           )}
 
-          
-          {/* Quick evaluation presets */}
-            <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--gov-navy-800)", display: "block", marginBottom: "0.5rem", textTransform: "uppercase" }}>
-              Quick Evaluation Presets (Smart India Hackathon 2026):
-            </span>
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={handleLoadFaultyPreset}
-                disabled={isUploading}
-                style={{ background: "#1E3A8A" }}
-              >
-                <Sparkles size={13} />
-                <span>Load Faulty Mock Batch (7 Planted Faults)</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleLoadCleanPreset}
-                disabled={isUploading}
-              >
-                <CheckCircle2 size={13} style={{ color: "#166534" }} />
-                <span>Load Clean Batch</span>
-              </button>
-            </div>
         </div>
 
         {/* Column Mapping Preview Card */}
@@ -466,18 +488,10 @@ export function CollegeUpload() {
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
               <button
                 type="button"
-                className="btn btn-secondary"
-                onClick={() => navigate("/college/validate")}
-              >
-                <span>Go to Validate Records</span>
-                <ArrowRight size={16} />
-              </button>
-              <button
-                type="button"
                 className="btn btn-primary"
-                onClick={() => navigate("/college/workbench")}
+                onClick={() => navigate(`/college/workbench?batch=${encodeURIComponent(activeBatch.batchId)}`)}
               >
-                <span>Inspect Flagged Rows in Workbench</span>
+                <span>Open Issue Workbench</span>
                 <ArrowRight size={16} />
               </button>
             </div>

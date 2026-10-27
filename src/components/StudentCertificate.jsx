@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Award, Download, Search } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { collegeApi } from "../api/collegeApi";
+import { getBackendStudentJourney, isBackendConfigured } from "../api/ingestionApi";
 
 export function StudentCertificate() {
   const [apaarId, setApaarId] = useState("");
@@ -9,19 +10,29 @@ export function StudentCertificate() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lookupNotice, setLookupNotice] = useState("");
 
   const lookup = async (event) => {
     event.preventDefault();
     setRecord(null);
     setMessage("");
     setError("");
+    setLookupNotice("");
     if (!/^\d{12}$/.test(apaarId.trim())) {
       setError("APAAR ID must contain exactly 12 numeric digits.");
       return;
     }
     setLoading(true);
     try {
-      const result = await collegeApi.getStudentJourney(apaarId);
+      const backend = isBackendConfigured()
+        ? await getBackendStudentJourney(apaarId, "COLLEGE")
+        : null;
+      const result = backend && !backend.offline
+        ? backend
+        : await collegeApi.getStudentJourney(apaarId);
+      if (backend?.offline) {
+        setLookupNotice("Connection unavailable; checking locally stored records.");
+      }
       const accepted = result.records.find((item) => item.status === "ACCEPTED");
       if (!accepted) {
         setMessage(result.records.length
@@ -37,8 +48,11 @@ export function StudentCertificate() {
     }
   };
 
-  const verificationLink = record?.recordReference
-    ? `${window.location.origin}/external/verify?reference=${encodeURIComponent(record.recordReference)}`
+  const verificationId = record
+    ? record.recordReference || `EDU-${record.institutionId}-${record.id}`
+    : "";
+  const verificationLink = verificationId
+    ? `${window.location.origin}/external/verify?reference=${encodeURIComponent(verificationId)}`
     : "";
 
   return (
@@ -47,7 +61,7 @@ export function StudentCertificate() {
         <div className="role-card-icon"><Award size={22} /></div>
         <div>
           <h2>Generate Student Certificate</h2>
-          <p>Look up an accepted student record by APAAR ID and print the synthetic prototype certificate.</p>
+          <p>Look up an accepted student record by APAAR ID and prepare its certificate.</p>
         </div>
       </div>
       <form onSubmit={lookup} className="certificate-lookup-form">
@@ -69,6 +83,7 @@ export function StudentCertificate() {
       </form>
       {error && <p className="certificate-error" role="alert">{error}</p>}
       {message && <p className="certificate-message" role="status">{message}</p>}
+      {lookupNotice && <p className="certificate-message" role="status">{lookupNotice}</p>}
       {record && (
         <div className="certificate-result">
           <dl>
@@ -77,6 +92,9 @@ export function StudentCertificate() {
             <dt>Programme</dt><dd>{record.programme}</dd>
             <dt>Academic year</dt><dd>{record.academicYear || "2026-2027"}</dd>
             <dt>APAAR ID</dt><dd>{record.apaarId}</dd>
+            <dt>Institution</dt><dd>{record.institutionName}</dd>
+            <dt>Institution ID</dt><dd>{record.institutionId}</dd>
+            <dt>Verification ID</dt><dd>{verificationId || "Unavailable"}</dd>
           </dl>
           <div className="certificate-actions">
             <button type="button" className="btn btn-primary" onClick={() => window.print()}>
@@ -84,10 +102,12 @@ export function StudentCertificate() {
             </button>
           </div>
           <div className="certificate-print-preview">
-            <p>EDUVÉRIFY institutional certificate — synthetic prototype record</p>
+            <p>EDUVÉRIFY Institutional Certificate</p>
             <h3>Student Credential Certificate</h3>
             <p><strong>{record.studentName}</strong></p>
             <p>{record.programme} · {record.academicYear || "2026-2027"} · APAAR {record.apaarId}</p>
+            <p>{record.institutionName} · {record.institutionId}</p>
+            {verificationId && <p>Verification ID: {verificationId}</p>}
             {verificationLink && <QRCodeSVG value={verificationLink} size={120} />}
             <small>Accepted record. Not an officially signed government credential.</small>
           </div>

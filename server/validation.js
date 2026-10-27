@@ -13,19 +13,24 @@ function parseBoolean(value, field) {
 }
 
 export function normalizeStudent(input = {}) {
+  const dob = input.dob || input.dateOfBirth || "";
   const normalized = {
     studentId: String(input.studentId || "").trim(),
     studentName: String(input.studentName || "").trim(),
     apaarId: String(input.apaarId || "").trim(),
     programme: String(input.programme || "").trim(),
     yearOfStudy: String(input.yearOfStudy || "").trim(),
+    dob: dob instanceof Date && !Number.isNaN(dob.getTime())
+      ? dob.toISOString().slice(0, 10)
+      : String(dob).trim(),
+    admissionStatus: String(input.admissionStatus || "").trim(),
     category: String(input.category || "").trim(),
     ociStatus: input.ociStatus || "",
     foreignNationalStatus: input.foreignNationalStatus || "",
     nriStatus: input.nriStatus || input.nri || "",
     supernumerarySeats: Number(input.supernumerarySeats || 0),
     gender: String(input.gender || "").trim(),
-    admissionDate: String(input.admissionDate || "").trim(),
+    admissionDate: String(input.admissionDate || input.admission_date || "").trim(),
     institutionId: input.institutionId ? String(input.institutionId).trim() : ""
   };
   for (const field of BOOLEAN_FIELDS) normalized[field] = parseBoolean(normalized[field], field);

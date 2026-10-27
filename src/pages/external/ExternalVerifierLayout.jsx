@@ -1,26 +1,48 @@
 import React from "react";
-import { NavLink, Outlet } from "react-router-dom";
-import { ShieldCheck } from "lucide-react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { ShieldCheck, LogOut } from "lucide-react";
+import { authApi } from "../../api/authApi";
 
 export function ExternalVerifierLayout() {
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await authApi.logout();
+    navigate("/");
+  }
+
   return (
     <div className="gov-container-wide" style={{ paddingTop: "2rem", paddingBottom: "3rem" }}>
-      <div style={{ marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.35rem" }}>
-          <ShieldCheck size={24} style={{ color: "var(--gov-navy-700)" }} />
-          <h1 style={{ fontSize: "1.75rem", color: "var(--gov-navy-900)" }}>External Verifier Portal</h1>
+      <header style={{ background: "linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)", color: "#FFFFFF", padding: "1rem 1.25rem", borderRadius: "14px", marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "#C7D2FE", fontWeight: 700 }}>External verification</div>
+              <div style={{ fontSize: "1.15rem", fontWeight: 800 }}>Verification access portal</div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="btn btn-secondary btn-sm"
+            style={{ background: "rgba(255,255,255,0.08)", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.2)", display: "inline-flex", alignItems: "center", gap: "0.45rem" }}
+          >
+            <LogOut size={14} />
+            <span>Logout</span>
+          </button>
         </div>
-        <p style={{ color: "var(--text-muted)", lineHeight: "1.5" }}>
-          Prototype: records are synthetic. Verification is simulated. External verifiers can see only the permitted fields of one consented record.
-        </p>
-      </div>
+      </header>
 
       <nav className="portal-tabs" aria-label="External Verifier navigation">
         <NavLink to="/external/verify" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
-          1. Record Review
+          1. Generate request
         </NavLink>
         <NavLink to="/external/history" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
-          2. My Verification History
+          2. Check status
         </NavLink>
       </nav>
 

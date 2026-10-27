@@ -18,7 +18,7 @@ export function AicteAuditLog() {
       if (isBackendConfigured()) {
         const backend = await getBackendAudit();
         if (backend.offline) {
-          setBackendNotice("Backend offline: using demo data");
+          setBackendNotice("Connection unavailable; showing locally available records.");
           setLogs(local);
         } else {
           setBackendNotice("");
@@ -47,7 +47,9 @@ export function AicteAuditLog() {
         log.actorEmail?.toLowerCase().includes(q) ||
         log.actionType?.toLowerCase().includes(q) ||
         log.details?.toLowerCase().includes(q) ||
-        log.changeSummary?.toLowerCase().includes(q)
+        log.changeSummary?.toLowerCase().includes(q) ||
+        log.operationId?.toLowerCase().includes(q) ||
+        log.issuingAuthority?.toLowerCase().includes(q)
       );
     }
     return true;
@@ -62,7 +64,7 @@ export function AicteAuditLog() {
               Statutory Compliance & Security Audit Log
             </h2>
             <span className="tag-badge" style={{ background: "#F1F5F9", color: "#475569" }}>
-              AUDIT TRAIL (PROTOTYPE)
+              AUDIT TRAIL
             </span>
           </div>
           <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
@@ -144,7 +146,9 @@ export function AicteAuditLog() {
           <thead>
             <tr>
               <th scope="col">Timestamp (UTC)</th>
+              <th scope="col">Operation ID</th>
               <th scope="col">Actor & Role</th>
+              <th scope="col">Issuing Authority</th>
               <th scope="col">Action Type</th>
               <th scope="col">Resource ID</th>
               <th scope="col" style={{ minWidth: "260px" }}>Event Details</th>
@@ -175,6 +179,7 @@ export function AicteAuditLog() {
                     <td style={{ whiteSpace: "nowrap", fontSize: "0.75rem", fontFamily: "monospace" }}>
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
+                    <td style={{ fontSize: "0.75rem", fontFamily: "monospace", whiteSpace: "nowrap" }}>{log.operationId || log.id}</td>
                     <td>
                       <div style={{ fontWeight: "700", color: "var(--gov-navy-900)" }}>{log.actorName}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>

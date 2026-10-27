@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight, Building2, ShieldCheck, UserCheck } from "lucide-react";
+import { ArrowRight, Building2, ShieldCheck, UserCheck, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const roles = [
@@ -23,9 +23,17 @@ const roles = [
     title: "External Verifier",
     description: "Review relevant student and institution records through authorized verification access.",
     icon: UserCheck,
-    path: "/login/external",
+    path: "/external/verify",
     action: "Continue as External Verifier",
     className: "role-card-external"
+  },
+  {
+    title: "Student",
+    description: "Review pending verification requests and choose whether to share your academic details.",
+    icon: GraduationCap,
+    path: "/login/student",
+    action: "Continue as Student",
+    className: "role-card-student"
   }
 ];
 
@@ -38,7 +46,7 @@ export function RoleSelectionPage() {
           <h1>Choose your role</h1>
           <p>Select the portal that matches your responsibilities.</p>
         </div>
-        <div className="role-card-grid">
+        <div className="role-card-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "1rem" }}>
           {roles.map(({ title, description, icon: Icon, path, action, className }) => (
             <article className={`role-card ${className}`} key={title}>
               <div className="role-card-icon"><Icon size={24} /></div>

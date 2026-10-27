@@ -28,7 +28,7 @@ export function CollegeDashboard() {
     try {
       const backend = isBackendConfigured() ? await getBackendDashboard("INSTITUTION") : null;
       const data = backend?.offline || !backend ? await collegeApi.getDashboardStats() : backend;
-      setOfflineNotice(backend?.offline ? "Backend offline: using demo data" : "");
+      setOfflineNotice(backend?.offline ? "Connection unavailable; showing locally available records." : "");
       setStats(data);
     } catch (e) {
       console.error(e);
@@ -65,12 +65,12 @@ export function CollegeDashboard() {
               Institutional Intake & Enrolment Dashboard
             </h2>
             <span className="tag-badge" style={{ background: "#EFF6FF", color: "#1E40AF" }}>
-              Own Data Only &bull; PICT
+              Own Data Only &bull; {stats.institutionName}
             </span>
           </div>
           {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
           <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
-            Refreshable prototype compliance monitoring against the AICTE Approval Master rulebook. Data is synthetic and local; only accepted records count toward enrolment.
+            Institutional intake and enrolment monitoring against approved programme data. Only accepted records count toward enrolment.
           </p>
         </div>
 

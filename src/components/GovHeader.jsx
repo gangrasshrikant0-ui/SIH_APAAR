@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShieldCheck, LogOut, Menu, X, RotateCcw, Building2, UserCheck } from "lucide-react";
+import { ShieldCheck, LogOut, RotateCcw, Building2, UserCheck } from "lucide-react";
 import { getCurrentUser, setCurrentUser, resetDemoState } from "../mocks/mockStore";
+import { CollegeNotificationBell } from "./CollegeNotificationBell";
 
 export function GovHeader() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = getCurrentUser();
@@ -17,7 +17,7 @@ export function GovHeader() {
   };
 
   const handleResetDemo = () => {
-    if (window.confirm("Reset mock batches, anomalies, and logs to initial SIH prototype state?")) {
+    if (window.confirm("Reset local portal records and activity logs to their initial state?")) {
       resetDemoState();
       window.location.reload();
     }
@@ -32,10 +32,13 @@ export function GovHeader() {
             <Building2 size={20} />
             <span>{currentUser.institutionName}</span>
           </Link>
-          <button type="button" onClick={handleLogout} className="btn btn-secondary btn-sm">
-            <LogOut size={14} />
-            Logout
-          </button>
+          <div className="college-auth-actions">
+            <CollegeNotificationBell />
+            <button type="button" onClick={handleLogout} className="btn btn-secondary btn-sm">
+              <LogOut size={14} />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
     );
@@ -85,17 +88,6 @@ export function GovHeader() {
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav aria-label="Main Navigation">
-          <ul className={`gov-nav-links ${mobileMenuOpen ? "mobile-open" : ""}`}>
-            <li>
-              <Link to="/roles" className="gov-nav-link" onClick={() => setMobileMenuOpen(false)}>
-                Role Portals
-              </Link>
-            </li>
-          </ul>
-        </nav>
-
         {/* User Role & Actions */}
         <div className="gov-auth-strip">
           {currentUser && !isPublicRoute ? (
@@ -104,8 +96,8 @@ export function GovHeader() {
               
               {/* Quick portal shortcut based on role */}
               {currentUser.role === "COLLEGE" && (
-                <Link to="/college/dashboard" className="btn btn-secondary btn-sm" title="Go to College Intake Dashboard">
-                  Dashboard
+                <Link to="/college/upload" className="btn btn-secondary btn-sm" title="Go to College Batch Upload">
+                  College Portal
                 </Link>
               )}
               {currentUser.role === "AICTE" && (
@@ -125,35 +117,19 @@ export function GovHeader() {
               </button>
             </div>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Link to="/roles" className="btn btn-primary btn-sm">
-                Role Portals
-              </Link>
-            </div>
+            null
           )}
 
-          {/* Prototype Reset Button */}
           <button
             type="button"
             onClick={handleResetDemo}
             className="btn btn-secondary btn-sm"
-            title="Reset mock batches & anomalies to initial demo state"
+            title="Reset local portal data"
             style={{ padding: "0.35rem 0.5rem", color: "var(--text-muted)" }}
           >
             <RotateCcw size={13} />
           </button>
 
-          {/* Mobile Menu Toggle */}
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            style={{ display: "none" }}
-            id="mobile-toggle-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle Navigation Menu"
-          >
-            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
         </div>
       </div>
     </header>

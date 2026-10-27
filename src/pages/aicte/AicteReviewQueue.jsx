@@ -61,7 +61,7 @@ function SortIcon({ col, sortCol, sortDir }) {
 }
 
 // ── Detail Drawer ─────────────────────────────────────────────────────────────
-function AicteCaseDrawer({ item, note, onNoteChange, onClose, onConfirm, onSendBack, processing }) {
+function AicteCaseDrawer({ item, note, onNoteChange, onClose, onConfirm, onSendBack, onNotifyCollege, processing }) {
   if (!item) return null;
   return (
     <>
@@ -158,6 +158,9 @@ function AicteCaseDrawer({ item, note, onNoteChange, onClose, onConfirm, onSendB
 
         {/* Footer */}
         <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--border-light)", background: "#FAFAFA", display: "flex", gap: "0.75rem", justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onNotifyCollege} disabled={processing} title="Send high-priority notice to the institution's workbench">
+            <Send size={13} /><span>Notify College</span>
+          </button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onSendBack} disabled={processing} title="Return to institution as ACTION_REQUIRED">
             <Send size={13} /><span>Send Back to College</span>
           </button>
@@ -310,7 +313,7 @@ export function AicteReviewQueue() {
       if (isBackendConfigured()) {
         const backend = await getBackendReviewQueue(institutionFilter);
         if (backend.offline) {
-          setBackendNotice("Backend offline: using demo data");
+          setBackendNotice("Connection unavailable; showing locally available records.");
           setQueue(localData);
         } else {
           setBackendNotice("");
@@ -346,9 +349,44 @@ export function AicteReviewQueue() {
     });
 
   const selectedCase = filteredQueue.find((i) => i.id === selectedCaseId) ?? null;
+  const institutionGroups = Array.from(
+    filteredQueue.reduce((map, item) => {
+      const key = item.institutionId || "UNKNOWN";
+      const current = map.get(key) || { id: key, name: item.institutionName || "Unknown institution", count: 0 };
+      current.count += 1;
+      map.set(key, current);
+      return map;
+    }, new Map())
+  ).map(([, value]) => value).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   const totalPages = Math.max(1, Math.ceil(filteredQueue.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const visibleQueue = filteredQueue.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const handleNotifyCollege = async (item) => {
+    if (!item?.institutionId) return;
+    setProcessingId(item.id);
+    try {
+      const note = reviewerNotes[item.id] || "AICTE has flagged this institution-level issue and requires immediate correction before revalidation can proceed.";
+      const result = await aicteApi.notifyCollegeIssue({
+        institutionId: item.institutionId,
+        institutionName: item.institutionName,
+        issueTitle: item.issueTitle || issueLabel(item.issueType),
+        issueType: item.issueType,
+        message: note,
+        batchId: item.batchId
+      });
+      setActionSuccessMsg(`High-priority notification sent to ${item.institutionName}. The issue is now visible in the institution workbench.`);
+      setTimeout(() => setActionSuccessMsg(""), 6000);
+      if (result) {
+        setQueue((current) => current.map((entry) => entry.institutionId === item.institutionId ? { ...entry, visibleToCollege: true, collegeNotificationSent: true } : entry));
+      }
+      loadQueue();
+    } catch (e) {
+      alert("Error notifying college: " + e.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const handleConfirmEvidence = async (item) => {
     setProcessingId(item.id);
@@ -418,7 +456,7 @@ export function AicteReviewQueue() {
           className="btn btn-secondary btn-sm"
           onClick={handleSimulate8Days}
           disabled={simulatingEscalation}
-          title="Simulate 8 days elapsed — triggers auto-escalation (prototype only)"
+          title="Simulate 8 days elapsed to trigger auto-escalation"
           style={{ borderColor: "#9333EA", color: "#6B21A8", background: "#FAF5FF" }}
         >
           {simulatingEscalation
@@ -476,13 +514,49 @@ export function AicteReviewQueue() {
         </div>
       </div>
 
+      {institutionGroups.length > 0 && (
+        <div className="gov-card" style={{ padding: "1rem", marginBottom: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <h3 style={{ margin: 0, fontSize: "1.05rem", color: "var(--gov-navy-900)" }}>Institutions in queue</h3>
+            <span className="tag-badge" style={{ background: "#EEF2FF", color: "#4338CA" }}>{institutionGroups.length} institutions</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem" }}>
+            {institutionGroups.map((institution) => (
+              <button
+                key={institution.id}
+                type="button"
+                onClick={() => setInstitutionFilter(institution.id)}
+                style={{
+                  border: institution.id === institutionFilter ? "1px solid #6366F1" : "1px solid var(--border-light)",
+                  background: institution.id === institutionFilter ? "#EEF2FF" : "#FFFFFF",
+                  borderRadius: "10px",
+                  padding: "0.8rem 0.9rem",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "0.75rem"
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, color: "var(--gov-navy-900)" }}>{institution.name}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{institution.id}</div>
+                </div>
+                <span style={{ background: "#F3F4F6", borderRadius: "999px", padding: "0.2rem 0.5rem", fontSize: "0.72rem", fontWeight: 700, color: "var(--gov-navy-900)" }}>[{institution.count}]</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Student list */}
       {loading ? (
         <div className="gov-card" style={{ textAlign: "center", padding: "3rem" }}>
           <RefreshCw size={24} className="spin-slow" style={{ color: "#4F46E5", margin: "0 auto 0.5rem auto" }} />
           <p style={{ color: "var(--text-muted)" }}>Loading escalated review queue...</p>
         </div>
-      ) : filteredQueue.length === 0 ? (
+      ) : institutionFilter === "ALL" ? null : filteredQueue.length === 0 ? (
         <div className="state-box">
           <CheckCircle2 size={36} style={{ color: "#166534", marginBottom: "0.75rem" }} />
           <h3 className="state-title">No cases match the selected filters</h3>
@@ -522,6 +596,7 @@ export function AicteReviewQueue() {
           onClose={() => setSelectedCaseId(null)}
           onConfirm={() => handleConfirmEvidence(selectedCase)}
           onSendBack={() => handleSendBack(selectedCase)}
+          onNotifyCollege={() => handleNotifyCollege(selectedCase)}
           processing={processingId === selectedCase.id}
         />
       )}

@@ -67,7 +67,9 @@ export function logAuditEvent(entry) {
     const logs = existingStr ? JSON.parse(existingStr) : [...INITIAL_AUDIT_LOGS];
     const newEntry = {
       id: `AUDIT-${Date.now().toString().slice(-4)}`,
+      operationId: entry.operationId || `OP-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
       timestamp: new Date().toISOString(),
+      issuingAuthority: entry.issuingAuthority || entry.actorName || "System",
       ...entry
     };
     logs.unshift(newEntry);

@@ -50,7 +50,7 @@ function SingleStudentForm({ institution, onSaved }) {
         ? await ingestStudent(form, currentUser?.id || "INST-001")
         : await collegeApi.addStudentsToStaging([form], "MANUAL_ENTRY");
       if (res.offline) {
-        setBackendNotice("Backend offline: using demo data");
+        setBackendNotice("Backend unavailable; the record was saved locally.");
         await collegeApi.addStudentsToStaging([form], "MANUAL_ENTRY");
       }
       if (isBackendConfigured() && !res.offline) {
@@ -230,7 +230,7 @@ function MultiStudentForm({ institution, onSaved }) {
         : [];
       const offline = backendResults.some((result) => result.status === "fulfilled" && result.value.offline);
       if (offline) {
-        setBackendNotice("Backend offline: using demo data");
+        setBackendNotice("Backend unavailable; records were saved locally.");
         await collegeApi.addStudentsToStaging(toSave, "MANUAL_ENTRY");
       } else {
         const successful = backendResults
@@ -436,7 +436,7 @@ function MultiStudentForm({ institution, onSaved }) {
 
 export function CollegeAddStudents() {
   const currentUser = getCurrentUser();
-  const institution = currentUser?.institutionName || "Pune Institute of Computer Technology (PICT)";
+  const institution = currentUser?.institutionName || "Institution";
 
   const [mode, setMode] = useState("single");
   const [savedCount, setSavedCount] = useState(null);
@@ -452,9 +452,6 @@ export function CollegeAddStudents() {
         <h2 style={{ fontSize: "1.75rem", color: "var(--gov-navy-900)" }}>
           Add Students
         </h2>
-        <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.25rem", fontStyle: "italic" }}>
-          Prototype: records are stored in synthetic mock data. Format-valid APAAR IDs are not identity-verified.
-        </p>
       </div>
 
       {savedCount !== null && (
@@ -470,8 +467,8 @@ export function CollegeAddStudents() {
             <CheckCircle2 size={18} />
             <strong>{savedCount} record{savedCount !== 1 ? "s" : ""}</strong> saved to staging area successfully.
           </span>
-          <Link to="/college/validate" className="btn btn-primary btn-sm">
-            <span>Go to Validate Records</span>
+          <Link to="/college/workbench" className="btn btn-primary btn-sm">
+            <span>Review in Issue Workbench</span>
             <ArrowRight size={14} />
           </Link>
         </div>
@@ -509,8 +506,8 @@ export function CollegeAddStudents() {
       <div style={{ background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: "8px", padding: "0.75rem 1rem", fontSize: "0.8125rem", color: "#92400E" }}>
         <AlertTriangle size={14} style={{ display: "inline", marginRight: "4px" }} />
         <strong>Inline hints</strong> (required field, 12-digit APAAR) are shown above for immediate feedback.
-        The <strong>full AICTE validation</strong> — including duplicate detection, programme mapping, intake checks, and seat-category limits — runs on the{" "}
-        <Link to="/college/validate" style={{ color: "#92400E", fontWeight: "700" }}>Validate Records</Link> page.
+        Records are checked automatically when saved. Review any flagged items in the{" "}
+        <Link to="/college/workbench" style={{ color: "#92400E", fontWeight: "700" }}>Issue Workbench</Link>.
       </div>
     </div>
   );

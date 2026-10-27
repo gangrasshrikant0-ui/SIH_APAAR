@@ -156,12 +156,12 @@ function AuditTrailView() {
 
   function handleDownload() {
     const headers = [
-      "ID", "Timestamp", "Actor Name", "Role", "Email",
-      "Action Type", "Resource ID", "Event Details", "Change Summary", "Severity"
+      "Operation ID", "Timestamp", "Actor Name", "Role", "Email",
+      "Action Type", "Resource ID", "Issuing Authority", "Event Details", "Severity"
     ];
     const rows = filteredLogs.map((l) => [
-      l.id, l.timestamp, l.actorName, l.actorRole, l.actorEmail,
-      l.actionType, l.resourceId, l.details, l.changeSummary, l.severity
+      l.operationId || l.id, l.timestamp, l.actorName, l.actorRole, l.actorEmail,
+      l.actionType, l.resourceId, l.issuingAuthority || l.actorName, l.details, l.severity
     ]);
     downloadCsv(`statutory-audit-trail-${todayIso()}.csv`, headers, rows);
     aicteApi.logReportDownload({
@@ -199,7 +199,7 @@ function AuditTrailView() {
             }}
           >
             <ArrowLeft size={14} />
-            Back to National Reports
+            Back to compliance centre
           </Link>
           <div
             style={{
@@ -216,12 +216,11 @@ function AuditTrailView() {
               className="tag-badge"
               style={{ background: "#F1F5F9", color: "#475569" }}
             >
-              AUDIT TRAIL (PROTOTYPE)
+              AUDIT TRAIL
             </span>
           </div>
           <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
             Record of who, what, when and what changed across all institutions.
-            Prototype log using synthetic data.
           </p>
         </div>
 
@@ -329,12 +328,12 @@ function AuditTrailView() {
         <table className="data-table" aria-label="AICTE Statutory Compliance Audit Trail">
           <thead>
             <tr>
+              <th scope="col">Operation ID</th>
               <th scope="col">Timestamp (UTC)</th>
               <th scope="col">Actor &amp; Role</th>
               <th scope="col">Action Type</th>
-              <th scope="col">Resource ID</th>
+              <th scope="col">Issuing Authority</th>
               <th scope="col" style={{ minWidth: "260px" }}>Event Details</th>
-              <th scope="col" style={{ minWidth: "220px" }}>Change Summary</th>
               <th scope="col">Severity</th>
             </tr>
           </thead>
@@ -376,6 +375,9 @@ function AuditTrailView() {
                     key={log.id}
                     style={{ background: isCritical ? "#FFF5F5" : "inherit" }}
                   >
+                    <td style={{ fontSize: "0.75rem", fontFamily: "monospace", fontWeight: 700 }}>
+                      {log.operationId || log.id}
+                    </td>
                     <td
                       style={{
                         whiteSpace: "nowrap",
@@ -412,14 +414,11 @@ function AuditTrailView() {
                         {log.actionType}
                       </code>
                     </td>
-                    <td>
-                      <code style={{ fontSize: "0.75rem" }}>{log.resourceId}</code>
+                    <td style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+                      {log.issuingAuthority || log.actorName || "—"}
                     </td>
                     <td style={{ fontSize: "0.8125rem", lineHeight: "1.4" }}>
                       {log.details}
-                    </td>
-                    <td style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-                      {log.changeSummary}
                     </td>
                     <td>
                       <span
@@ -471,7 +470,7 @@ function IntakeReportView() {
     try {
       const backend = isBackendConfigured() ? await getBackendReport("AICTE") : null;
       if (backend?.offline) {
-        setOfflineNotice("Backend offline: using demo data");
+        setOfflineNotice("Connection unavailable; showing locally available records.");
         setRows(await aicteApi.getIntakeReportRows());
       } else if (backend) {
         setOfflineNotice("");
@@ -577,7 +576,7 @@ function IntakeReportView() {
             }}
           >
             <ArrowLeft size={14} />
-            Back to National Reports
+            Back to compliance centre
           </Link>
           <h2 style={{ fontSize: "1.75rem", color: "var(--gov-navy-900)" }}>
             All-India Institutional Intake Report
@@ -869,7 +868,7 @@ export function AicteReports() {
             marginBottom: "0.5rem"
           }}
         >
-          National AICTE Reports
+          Compliance Centre
         </h2>
         <p style={{ fontSize: "0.9375rem", color: "var(--text-muted)" }}>
           Official central reports covering all institutions for parliamentary
@@ -995,7 +994,7 @@ export function AicteReports() {
             >
               Full record of all system activity: batch submissions, automated
               revalidations, route guard violations, reviewer adjudications, and
-              status updates. AUDIT TRAIL (PROTOTYPE) — synthetic data.
+              status updates.
             </p>
             <span
               className="btn btn-secondary btn-sm"

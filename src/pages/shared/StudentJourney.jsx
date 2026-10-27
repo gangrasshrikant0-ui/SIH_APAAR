@@ -25,7 +25,7 @@ export function StudentJourney({ role }) {
       if (isBackendConfigured()) {
         const backend = await getBackendStudentJourney(apaarId, role);
         if (backend.offline) {
-          setBackendNotice("Backend offline: using demo data");
+          setBackendNotice("Connection unavailable; showing locally available records.");
           setResult(role === "AICTE" ? await aicteApi.getStudentJourney(apaarId) : await collegeApi.getStudentJourney(apaarId));
         } else {
           setBackendNotice("");
@@ -47,9 +47,6 @@ export function StudentJourney({ role }) {
         <h2 style={{ fontSize: "1.75rem", color: "var(--gov-navy-900)" }}>Student Journey</h2>
         <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
           Search one exact 12-digit APAAR ID across authorised records.
-        </p>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", fontStyle: "italic" }}>
-          Prototype: synthetic data. APAAR check is simulated. A correctly formatted APAAR ID is not identity-verified.
         </p>
         {backendNotice && <p role="status" style={{ color: "#92400E", fontSize: "0.8125rem" }}>{backendNotice}</p>}
       </div>
@@ -100,7 +97,6 @@ export function StudentJourney({ role }) {
               </tbody>
             </table>
           </div>
-          {role === "AICTE" && <p style={{ color: "var(--text-muted)", fontSize: "0.8125rem", marginTop: "1rem" }}>Prototype: synthetic data. APAAR check is simulated. A correctly formatted APAAR ID is not identity-verified.</p>}
         </div>
       )}
       {result?.activeElsewhere && role === "COLLEGE" && (

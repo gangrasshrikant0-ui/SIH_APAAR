@@ -1,6 +1,7 @@
 // LocalStorage-backed reactive Mock Store for APAAR Platform
 import { FAULTY_MOCK_BATCH, CLEAN_MOCK_BATCH, COEP_MOCK_BATCH, VJTI_MOCK_BATCH } from "./mockBatches.js";
 import { logAuditEvent } from "./mockAuditLog.js";
+import { DEMO_ACCOUNTS as CENTRAL_DEMO_ACCOUNTS, DEMO_DATA_NOTICE, DEMO_INSTITUTIONS } from "./demoReference.js";
 
 // In-memory fallback if running in Node.js test environment
 const memoryStorage = {};
@@ -33,47 +34,14 @@ const STORAGE_KEYS = {
   CURRENT_BATCH_ID: "apaar_current_batch_id",
   STUDENT_CONSENT: "apaar_student_consent",
   FONT_SCALE: "apaar_font_scale",
-  SETTINGS: "apaar_prototype_settings"
+  SETTINGS: "apaar_prototype_settings",
+  COLLEGE_NOTICE_READS: "apaar_college_notice_reads",
+  NOTIFICATIONS: "apaar_notifications",
+  COLLEGE_CONSENT: "apaar_college_consent"
 };
 
-// Demo user profiles
-export const DEMO_ACCOUNTS = {
-  COLLEGE: {
-    role: "COLLEGE",
-    id: "INST-001",
-    name: "Dr. Arvind Kulkarni",
-    title: "Registrar / Institutional Nodal Officer",
-    institutionName: "Pune Institute of Computer Technology (PICT)",
-    aicteId: "AICTE-1-1029384",
-    email: "pict.admin@college.edu",
-    avatar: "PICT",
-    username: "pict_admin",
-    passwordHint: "demo123"
-  },
-  AICTE: {
-    role: "AICTE",
-    id: "AICTE-HQ",
-    name: "Dr. M. Jagadesh Kumar",
-    title: "AICTE Central Review Bureau Chief",
-    institutionName: "All India Council for Technical Education (HQ New Delhi)",
-    aicteId: "AICTE-HQ-CENTRAL",
-    email: "aicte.central@gov.in",
-    avatar: "AICTE",
-    username: "aicte_officer",
-    passwordHint: "demo123"
-  },
-  EXTERNAL_VERIFIER: {
-    role: "EXTERNAL_VERIFIER",
-    id: "VERIFIER-001",
-    name: "Meera Kapoor",
-    title: "Authorised External Verifier",
-    institutionName: "National Credential Review Office",
-    email: "verifier@credential-review.example",
-    avatar: "EV",
-    username: "external_verifier",
-    passwordHint: "demo123"
-  }
-};
+export const DEMO_ACCOUNTS = CENTRAL_DEMO_ACCOUNTS;
+export { DEMO_DATA_NOTICE };
 
 export const DEFAULT_SETTINGS = {
   dueDaysSetting: 7, // Configurable setting: default 7 days, labelled "prototype setting"
@@ -209,11 +177,22 @@ export function getStoredBatches() {
   }
 }
 
+export function getBatchesForInstitution(institutionId) {
+  return Object.values(getStoredBatches()).filter((batch) => batch.institutionId === institutionId);
+}
+
 export function getActiveBatch() {
   initializeStore();
   const batches = getStoredBatches();
-  const currentBatchId = storageAdapter.getItem(STORAGE_KEYS.CURRENT_BATCH_ID) || FAULTY_MOCK_BATCH.batchId;
-  return batches[currentBatchId] || batches[FAULTY_MOCK_BATCH.batchId];
+  const currentUser = getCurrentUser();
+  const currentBatchId = storageAdapter.getItem(STORAGE_KEYS.CURRENT_BATCH_ID);
+  const requested = currentBatchId ? batches[currentBatchId] : null;
+  if (currentUser?.role === "COLLEGE") {
+    if (requested && requested.institutionId === currentUser.id) return requested;
+    const own = getBatchesForInstitution(currentUser.id);
+    return own.sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)))[0] || requested || null;
+  }
+  return requested || batches[FAULTY_MOCK_BATCH.batchId];
 }
 
 export function setActiveBatchId(batchId) {
@@ -239,6 +218,25 @@ export function simulateDaysPassing(days = 8) {
     // Only escalate open or pending issues that haven't been resolved/accepted
     if (r.status === "ACTION_REQUIRED" || r.status === "PENDING_REVIEW") {
       escalatedCount++;
+      const issueLedger = Array.isArray(r.issueLedger)
+        ? r.issueLedger.map((issue) => {
+            if (issue.issueStatus === "RESOLVED") return issue;
+            return {
+              ...issue,
+              issueStatus: "ESCALATED",
+              owner: "AICTE Central Reviewer",
+              requiredAction: `Escalated to AICTE Reviewer: Institutional response overdue past deadline. Reviewer adjudication required.`,
+              history: [
+                ...(issue.history || []),
+                {
+                  at: new Date().toISOString(),
+                  action: "ESCALATED",
+                  details: `Simulated ${days} days elapsed (prototype setting).`
+                }
+              ]
+            };
+          })
+        : r.issueLedger;
       return {
         ...r,
         isOverdue: true,
@@ -246,7 +244,8 @@ export function simulateDaysPassing(days = 8) {
         issueStatus: "ESCALATED",
         owner: "AICTE Central Reviewer",
         dueDateLabel: `Overdue (Escalated after ${days} days - prototype setting)`,
-        requiredAction: `Escalated to AICTE Reviewer: Institutional response overdue past deadline. Reviewer adjudication required.`
+        requiredAction: `Escalated to AICTE Reviewer: Institutional response overdue past deadline. Reviewer adjudication required.`,
+        issueLedger
       };
     }
     return r;
@@ -276,6 +275,9 @@ export function resetDemoState() {
   storageAdapter.removeItem(STORAGE_KEYS.STUDENT_CONSENT);
   storageAdapter.removeItem(STORAGE_KEYS.SETTINGS);
   storageAdapter.removeItem("apaar_audit_logs");
+  storageAdapter.removeItem(STORAGE_KEYS.COLLEGE_NOTICE_READS);
+  storageAdapter.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+  storageAdapter.removeItem(STORAGE_KEYS.COLLEGE_CONSENT);
   initializeStore();
   logAuditEvent({
     actorName: "System Administrator",
@@ -288,4 +290,113 @@ export function resetDemoState() {
     changeSummary: "Restored 7 planted faults and clean batches",
     severity: "WARNING"
   });
+}
+
+export function getCollegeNoticeReads() {
+  try {
+    const raw = storageAdapter.getItem(STORAGE_KEYS.COLLEGE_NOTICE_READS);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+export function markCollegeNoticeRead(noticeId) {
+  const reads = getCollegeNoticeReads();
+  reads[noticeId] = new Date().toISOString();
+  storageAdapter.setItem(STORAGE_KEYS.COLLEGE_NOTICE_READS, JSON.stringify(reads));
+  return reads;
+}
+
+export function getStoredNotifications() {
+  initializeStore();
+  try {
+    return JSON.parse(storageAdapter.getItem(STORAGE_KEYS.NOTIFICATIONS) || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+
+export function upsertNotification(notice) {
+  if (!notice?.id) return getStoredNotifications();
+  const notices = getStoredNotifications();
+  const index = notices.findIndex((item) => item.id === notice.id);
+  const next = {
+    synthetic: true,
+    createdAt: new Date().toISOString(),
+    ...notice
+  };
+  if (index === -1) notices.unshift(next);
+  else notices[index] = { ...notices[index], ...next };
+  storageAdapter.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notices));
+  return notices;
+}
+
+export function getCollegeConsentMap() {
+  try {
+    return JSON.parse(storageAdapter.getItem(STORAGE_KEYS.COLLEGE_CONSENT) || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+export function hasCollegeConsent(userId) {
+  if (!userId) return false;
+  return Boolean(getCollegeConsentMap()[userId]?.accepted);
+}
+
+export function setCollegeConsent(userId, accepted) {
+  const map = getCollegeConsentMap();
+  if (!userId) return map;
+  if (accepted) {
+    map[userId] = { accepted: true, acceptedAt: new Date().toISOString(), synthetic: true };
+  } else {
+    delete map[userId];
+  }
+  storageAdapter.setItem(STORAGE_KEYS.COLLEGE_CONSENT, JSON.stringify(map));
+  return map;
+}
+
+export function emitNotification(notice) {
+  if (!notice?.id) return getStoredNotifications();
+  return upsertNotification({
+    synthetic: true,
+    demoLabel: "SYNTHETIC / DEMO",
+    createdAt: new Date().toISOString(),
+    read: false,
+    ...notice
+  });
+}
+
+export function listNotificationsForUser(user = getCurrentUser()) {
+  const stored = getStoredNotifications();
+  if (!user) return [];
+  return stored.filter((notice) => {
+    if (user.role === "AICTE") return notice.audience === "AICTE" || notice.audience === "BOTH";
+    if (user.role === "COLLEGE") {
+      return (notice.audience === "COLLEGE" || notice.audience === "BOTH") && notice.institutionId === user.id;
+    }
+    return false;
+  });
+}
+
+export function markStoredNotificationRead(noticeId) {
+  const notices = getStoredNotifications().map((notice) =>
+    notice.id === noticeId ? { ...notice, read: true, readAt: new Date().toISOString() } : notice
+  );
+  storageAdapter.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notices));
+  markCollegeNoticeRead(noticeId);
+  return notices;
+}
+
+export function getInstitutionMaster(institutionId) {
+  return DEMO_INSTITUTIONS.find((item) => item.id === institutionId) || DEMO_INSTITUTIONS[0];
+}
+
+export function findStoredRecord(recordId) {
+  for (const batch of Object.values(getStoredBatches())) {
+    const record = (batch.records || []).find((item) => item.id === recordId);
+    if (record) return { batch, record };
+  }
+  return null;
 }

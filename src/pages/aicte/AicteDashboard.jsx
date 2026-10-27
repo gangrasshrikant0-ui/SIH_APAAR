@@ -1,10 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Building2, CheckCircle2, AlertTriangle, Percent, RefreshCw, Filter, AlertOctagon } from "lucide-react";
+import { Building2, CheckCircle2, AlertTriangle, Percent, RefreshCw, Filter, AlertOctagon, MapPinned, Search, FileDown, ShieldAlert } from "lucide-react";
 import { aicteApi } from "../../api/aicteApi";
 import { getBackendDashboard, isBackendConfigured } from "../../api/ingestionApi";
 
 const KPI_STYLE = { minHeight: "132px", display: "flex", flexDirection: "column", justifyContent: "space-between" };
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
 export function AicteDashboard() {
   const [institutionFilter, setInstitutionFilter] = useState("ALL");
@@ -18,7 +31,7 @@ export function AicteDashboard() {
     try {
       const backend = isBackendConfigured() ? await getBackendDashboard("AICTE", institutionFilter) : null;
       if (backend?.offline) {
-        setOfflineNotice("Backend offline: using demo data");
+        setOfflineNotice("Connection unavailable; showing locally available records.");
         setStats(await aicteApi.getAicteDashboardStats(institutionFilter));
       } else if (backend) {
         setOfflineNotice("");
@@ -42,32 +55,54 @@ export function AicteDashboard() {
     return () => { clearInterval(poll); window.removeEventListener("apaar:data-sync", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, [institutionFilter]);
 
+  const visibleInstitutions = useMemo(() => {
+    if (!stats) return [];
+    return [...stats.institutions]
+      .filter((institution) => {
+        if (!institutionSearch.trim()) return true;
+        const query = institutionSearch.toLowerCase();
+        return institution.name.toLowerCase().includes(query) || institution.aicteId.toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const diff = (b.openAnomalies || 0) - (a.openAnomalies || 0);
+        return diff !== 0 ? diff : (a.name || "").localeCompare(b.name || "");
+      });
+  }, [stats, institutionSearch]);
+
+  const handleDownloadOverallRecords = async () => {
+    const rows = await aicteApi.getAcceptedRepository();
+    const csvRows = [
+      ["Institution", "AICTE ID", "Batch ID", "Student Name", "PRN / Roll No.", "APAAR ID", "Programme", "Status"],
+      ...rows.map((record) => [
+        record.institutionName,
+        record.aicteId || "N/A",
+        record.batchId,
+        record.studentName,
+        record.studentId,
+        record.apaarId,
+        record.programme,
+        record.status
+      ])
+    ];
+    downloadCsv("aicte-overall-records.csv", csvRows);
+  };
+
   if (loading || !stats) {
     return <div className="gov-container" style={{ textAlign: "center", padding: "4rem" }}><RefreshCw size={24} className="spin-slow" /><p>Loading National AICTE Enrolment &amp; Compliance Metrics...</p></div>;
   }
-
-  const visibleInstitutions = stats.institutions.filter((institution) => {
-    if (!institutionSearch.trim()) return true;
-    const query = institutionSearch.toLowerCase();
-    return institution.name.toLowerCase().includes(query) || institution.aicteId.toLowerCase().includes(query);
-  });
 
   return (
     <div className="gov-container">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
         <div>
           <h2 style={{ fontSize: "1.75rem", color: "var(--gov-navy-900)", marginBottom: "0.5rem" }}>National AICTE Intake &amp; Enrolment Dashboard</h2>
-          <span className="tag-badge" style={{ background: "#F1F5F9", color: "#475569" }}>Prototype: synthetic data</span>
         </div>
         {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-          <label className="filter-label" htmlFor="dashboard-institution">Institution</label>
-          <select id="dashboard-institution" className="filter-select" value={institutionFilter} onChange={(event) => setInstitutionFilter(event.target.value)}>
-            <option value="ALL">All Colleges</option>
-            <option value="INST-001">PICT Pune</option>
-            <option value="INST-002">COEP Tech Pune</option>
-            <option value="INST-003">VJTI Mumbai</option>
-          </select>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleDownloadOverallRecords}>
+            <FileDown size={13} />
+            <span>Download entire records</span>
+          </button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={loadDashboard}><RefreshCw size={13} /> Refresh</button>
         </div>
       </div>
@@ -79,8 +114,50 @@ export function AicteDashboard() {
         <div className="gov-card" style={KPI_STYLE}><span style={{ color: "#6B21A8" }}>REVIEW QUEUE</span><AlertTriangle size={18} style={{ color: "#9333EA" }} /><strong style={{ fontSize: "2rem", color: "#6B21A8" }}>{stats.totalPendingReview}</strong><span>Escalated {stats.totalEscalated} · Overdue {stats.totalOverdue}</span></div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        {[["Total ACCEPTED records", stats.totalAcceptedRecords], ["Unique students (by APAAR ID)", stats.uniqueStudentsByApaar], ["APAAR IDs with multiple active enrolments", stats.apaarIdsWithMultipleActiveEnrolments]].map(([label, value]) => <div className="gov-card" key={label}><strong>{label}</strong><div style={{ fontSize: "1.8rem", fontWeight: 800, color: "#166534" }}>{value}</div></div>)}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div className="gov-card" style={{ padding: "1rem", minHeight: "150px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}><MapPinned size={18} /><strong>By State</strong></div>
+          <p style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Explore institutions by region</p>
+          <div style={{ fontSize: "2rem", fontWeight: 800, marginTop: "1rem" }}>12</div>
+        </div>
+        <div className="gov-card" style={{ padding: "1rem", minHeight: "150px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}><ShieldAlert size={18} /><strong>By Issue</strong></div>
+          <p style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Find colleges needing attention</p>
+          <div style={{ fontSize: "2rem", fontWeight: 800, marginTop: "1rem" }}>{stats.totalOpenAnomalies}</div>
+        </div>
+        <div className="gov-card" style={{ padding: "1rem", minHeight: "150px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}><Search size={18} /><strong>Institution Directory</strong></div>
+          <p style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Search all registered colleges</p>
+          <div style={{ fontSize: "2rem", fontWeight: 800, marginTop: "1rem" }}>{stats.institutions.length}</div>
+        </div>
+        <div className="gov-card" style={{ padding: "1rem", minHeight: "150px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}><Filter size={18} /><strong>Submission Status</strong></div>
+          <p style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Monitor uploads and validation</p>
+          <div style={{ fontSize: "2rem", fontWeight: 800, marginTop: "1rem" }}>{stats.institutions.filter((inst) => inst.openAnomalies > 0).length}</div>
+        </div>
+      </div>
+
+      <div className="gov-card" style={{ marginBottom: "1.5rem" }}>
+        <div className="gov-card-header"><h3>Needs Attention</h3><span className="tag-badge" style={{ background: "#FEE2E2", color: "#B91C1C" }}>{stats.totalOpenAnomalies}</span></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
+          {visibleInstitutions.map((institution) => (
+            <div key={institution.id} className="gov-card" style={{ padding: "1rem", background: "#FFF7F7" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start" }}>
+                <div>
+                  <strong>{institution.name}</strong>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{institution.shortName}</div>
+                </div>
+                <span style={{ background: "#FECACA", color: "#B91C1C", borderRadius: "999px", padding: "0.2rem 0.5rem", fontSize: "0.7rem", fontWeight: 700 }}>{institution.openAnomalies}</span>
+              </div>
+              <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.35rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                <div>Approved intake: {institution.approvedIntake}</div>
+                <div>Accepted: {institution.acceptedEnrolment}</div>
+                <div>Utilisation: {institution.utilisation}%</div>
+              </div>
+              <Link className="btn btn-secondary btn-sm" to={`/aicte/review?institution=${encodeURIComponent(institution.id)}`} style={{ marginTop: "0.75rem" }}>Review Queue</Link>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="gov-card" style={{ marginBottom: "1.5rem" }}>
@@ -96,11 +173,6 @@ export function AicteDashboard() {
           </table>
         </div>
         {visibleInstitutions.length === 0 && <p role="status">No institutions match this search.</p>}
-      </div>
-
-      <div className="gov-card">
-        <div className="gov-card-header"><h3>Synthetic monitoring trend</h3><span className="tag-badge" style={{ background: "#DBEAFE", color: "#1E40AF" }}>DEMO ANALYTICS</span></div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", alignItems: "end" }}>{[["Jul", 42], ["Aug", 58], ["Sep", 71], ["Oct", stats.totalAcceptedEnrolment]].map(([month, value]) => <div key={month} style={{ textAlign: "center" }}><div style={{ height: "90px", display: "flex", alignItems: "end", justifyContent: "center" }}><div title={`${value} accepted records`} style={{ width: "42px", height: `${Math.max(8, Math.min(90, value))}px`, background: "#2563EB", borderRadius: "6px 6px 0 0" }} /></div><strong>{month}</strong><div>{value}</div></div>)}</div>
       </div>
     </div>
   );

@@ -1,36 +1,22 @@
 // Authentication API
 // Simulates REST endpoint /api/v1/auth/*
 
-import { DEMO_ACCOUNTS, getCurrentUser, setCurrentUser } from "../mocks/mockStore.js";
+import {
+  getCurrentUser,
+  setCollegeConsent,
+  setCurrentUser
+} from "../mocks/mockStore.js";
+import { authenticateDemoUser } from "../mocks/demoReference.js";
 import { logAuditEvent } from "../mocks/mockAuditLog.js";
 
 export const authApi = {
   // Login method supporting College, AICTE, and External Verifier
-  async login({ role }) {
-    // Artificial latency for realistic REST API simulation
+  async login({ role, identifier, password }) {
     await new Promise((res) => setTimeout(res, 250));
-
-    if (role === "COLLEGE") {
-      const collegeUser = DEMO_ACCOUNTS.COLLEGE;
-      // Accept demo login
-      setCurrentUser(collegeUser);
-      return { success: true, user: collegeUser };
-    }
-
-    if (role === "AICTE") {
-      const aicteUser = DEMO_ACCOUNTS.AICTE;
-      // Accept demo login
-      setCurrentUser(aicteUser);
-      return { success: true, user: aicteUser };
-    }
-
-    if (role === "EXTERNAL_VERIFIER") {
-      const verifierUser = DEMO_ACCOUNTS.EXTERNAL_VERIFIER;
-      setCurrentUser(verifierUser);
-      return { success: true, user: verifierUser };
-    }
-
-    throw new Error("Unknown role specified.");
+    const user = authenticateDemoUser({ role, identifier, password });
+    setCurrentUser(user);
+    if (user.role === "COLLEGE") setCollegeConsent(user.id, false);
+    return { success: true, user };
   },
 
   async logout() {

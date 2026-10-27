@@ -17,6 +17,8 @@ const FIELD_ALIASES = {
   apaarId: ["apaarId", "APAAR", "APAAR_ID", "ApaarNumber", "National Student ID", "APAAR ID (12 Digits)"],
   programme: ["programme", "Course", "Branch", "Programme", "Department", "Degree & Programme"],
   yearOfStudy: ["yearOfStudy", "Year", "Class", "Semester", "YearOfStudy", "Academic Year of Study"],
+  dateOfBirth: ["dateOfBirth", "dob", "Date of Birth", "DOB", "Birth Date", "Birthdate"],
+  admissionStatus: ["admissionStatus", "Admission Status", "Enrolment Status", "Enrollment Status", "Status"],
   category: ["category", "Category", "Quota", "Admission Category", "SeatType", "Seat Category"],
   ociStatus: ["ociStatus", "OCI", "OCI Status", "OCI Flag"],
   foreignNationalStatus: ["foreignNationalStatus", "FN", "Foreign National", "FN Status", "Foreign National Status", "Foreign National Flag"],
@@ -308,12 +310,13 @@ function insertStudent(db, student, institutionId, source, issues, batchId) {
   const result = db.prepare(`
     INSERT INTO students (
       institution_id, student_id, student_name, apaar_id, programme, year_of_study,
-      category, oci_status, foreign_national_status, nri_status, supernumerary_seats, gender,
-      admission_date, source, status, created_at, batch_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      dob, admission_status, category, oci_status, foreign_national_status, nri_status,
+      supernumerary_seats, gender, admission_date, source, status, created_at, batch_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     institutionId, student.studentId, student.studentName, student.apaarId,
-    student.programme, student.yearOfStudy, student.category, String(student.ociStatus),
+    student.programme, student.yearOfStudy, student.dob, student.admissionStatus,
+    student.category, String(student.ociStatus),
     String(student.foreignNationalStatus), String(student.nriStatus), student.supernumerarySeats, student.gender,
     student.admissionDate, source, status, now, batchId
   );
@@ -378,6 +381,12 @@ function issuesFor(db, studentId) {
 }
 
 function backendRecord(db, row) {
+  const isConfirmed = (value) =>
+    value === true || value === 1 || String(value).toLowerCase() === "true";
+  const institution = db.prepare(
+    "SELECT institution_name FROM approval_master WHERE institution_id = ? LIMIT 1"
+  ).get(row.institution_id);
+
   return {
     id: `INGEST-${row.id}`,
     studentId: row.student_id,
@@ -385,10 +394,19 @@ function backendRecord(db, row) {
     apaarId: row.apaar_id,
     programme: row.programme,
     yearOfStudy: row.year_of_study,
+    dob: row.dob || "",
+    admissionStatus: row.admission_status || "",
+    category: row.category,
+    ociStatus: isConfirmed(row.oci_status) ? "CONFIRMED" : "NOT_APPLICABLE",
+    foreignNationalStatus: isConfirmed(row.foreign_national_status) ? "CONFIRMED" : "NOT_APPLICABLE",
+    nriStatus: isConfirmed(row.nri_status) ? "CONFIRMED" : "NOT_APPLICABLE",
+    supernumerarySeats: row.supernumerary_seats,
+    gender: row.gender || "",
+    admissionDate: row.admission_date || "",
     status: row.status,
     source: row.source,
     institutionId: row.institution_id,
-    institutionName: row.institution_id,
+    institutionName: institution?.institution_name || row.institution_id,
     batchId: row.batch_id,
     recordReference: row.record_reference,
     consentForExternalVerification: Boolean(row.consent_for_external_verification),
@@ -595,7 +613,7 @@ export function createApp({ db = createDatabase() } = {}) {
     const queue = rows.flatMap((row) => {
       const issues = issuesFor(db, row.id);
       return (issues.length ? issues : [{ issueType: null, severity: "HIGH", reason: "Record requires review.", field: null, responsibleParty: "AICTE Central Reviewer", requiredAction: "Review this record.", dueDate: null, evidence: "" }])
-        .map((issue) => ({ ...backendRecord(db, row), ...issue, batchId: `INGESTION-${row.id}`, institutionName: row.institution_id }));
+        .map((issue) => ({ ...backendRecord(db, row), ...issue, batchId: `INGESTION-${row.id}` }));
     });
     return response.json({ records: queue });
   });
@@ -658,15 +676,49 @@ export function createApp({ db = createDatabase() } = {}) {
     const issues = recomputeIssues(db, { ...student, id: row.id }, row.institution_id);
     const status = hasIssueType(issues, "CROSS_INSTITUTION_CONFLICT") ? "PENDING_REVIEW" : issues.length ? "ACTION_REQUIRED" : "UPLOADED";
     db.prepare(`
-      UPDATE students SET student_id=?, student_name=?, apaar_id=?, programme=?, year_of_study=?, category=?,
+      UPDATE students SET student_id=?, student_name=?, apaar_id=?, programme=?, year_of_study=?, dob=?, admission_status=?, category=?,
       oci_status=?, foreign_national_status=?, nri_status=?, supernumerary_seats=?, gender=?, admission_date=?, status=?
       WHERE id=?
-    `).run(student.studentId, student.studentName, student.apaarId, student.programme, student.yearOfStudy, student.category,
+    `).run(student.studentId, student.studentName, student.apaarId, student.programme, student.yearOfStudy, student.dob, student.admissionStatus, student.category,
       String(student.ociStatus), String(student.foreignNationalStatus), String(student.nriStatus), student.supernumerarySeats,
       student.gender, student.admissionDate, status, row.id);
     replaceIssues(db, row.id, issues);
     audit(db, "RECORD_CORRECTED", row.institution_id, row.source, `Record ${request.params.id} corrected.`, { status }, request);
     return response.json({ record: backendRecord(db, db.prepare("SELECT * FROM students WHERE id = ?").get(row.id)) });
+  });
+
+  app.post("/api/students/:id/draft", (request, response) => {
+    if (!requireRole(request, response, db, "INSTITUTION")) return;
+    const row = ownStudent(db, request, request.params.id);
+    if (!row) return response.status(403).json({ message: "Record does not belong to this institution." });
+    if (["ACCEPTED", "REJECTED"].includes(row.status)) {
+      return response.status(409).json({ message: `Cannot correct a ${row.status} record.` });
+    }
+
+    let student;
+    try {
+      student = normalizeStudent({ ...row, ...request.body, institutionId: row.institution_id });
+    } catch (error) {
+      return response.status(400).json({ message: error.message });
+    }
+    const storageErrors = validateStudent(student);
+    if (storageErrors.length) return response.status(400).json({ errors: storageErrors });
+    const duplicateStudent = db.prepare("SELECT id FROM students WHERE institution_id = ? AND student_id = ? AND id <> ?").get(row.institution_id, student.studentId, row.id);
+    if (duplicateStudent) return response.status(409).json({ message: "Student ID / PRN already exists for this institution." });
+
+    db.prepare(`
+      UPDATE students SET student_id=?, student_name=?, apaar_id=?, programme=?, year_of_study=?,
+      dob=?, admission_status=?, category=?, oci_status=?, foreign_national_status=?, nri_status=?,
+      supernumerary_seats=?, gender=?, admission_date=?
+      WHERE id=?
+    `).run(student.studentId, student.studentName, student.apaarId, student.programme, student.yearOfStudy,
+      student.dob, student.admissionStatus, student.category, String(student.ociStatus),
+      String(student.foreignNationalStatus), String(student.nriStatus), student.supernumerarySeats,
+      student.gender, student.admissionDate, row.id);
+
+    audit(db, "RECORD_DRAFT_SAVED", row.institution_id, row.source, `Draft saved for record ${request.params.id}.`, { status: row.status }, request);
+    const updated = db.prepare("SELECT * FROM students WHERE id = ?").get(row.id);
+    return response.json({ record: { ...backendRecord(db, updated), issues: issuesFor(db, row.id) } });
   });
 
   app.post("/api/students/:id/outcome", (request, response) => {

@@ -83,7 +83,7 @@ export function AccessDenied({ requiredRole, attemptedPath }) {
 
           <a href="/roles" className="btn btn-primary">
             <LogIn size={16} />
-            Switch Demo Account
+            Switch Account
           </a>
         </div>
       </div>

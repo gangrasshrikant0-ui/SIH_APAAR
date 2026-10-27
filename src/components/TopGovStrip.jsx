@@ -21,11 +21,11 @@ export function TopGovStrip() {
                 <span></span>
                 <span></span>
               </span>
-              Government of India (prototype)
+              Academic Data Verification Portal
             </span>
             <span style={{ color: "rgba(255, 255, 255, 0.3)" }}>|</span>
             <span style={{ color: "#CBD5E1" }}>
-              Smart India Hackathon 2026 Prototype
+              Student Record Verification
             </span>
           </div>
 
@@ -98,7 +98,7 @@ export function TopGovStrip() {
                 }}
               >
                 <option value="en" style={{ color: "#000" }}>English</option>
-                <option value="hi" style={{ color: "#000" }}>हिन्दी (Demo)</option>
+                <option value="hi" style={{ color: "#000" }}>हिन्दी</option>
               </select>
             </div>
           </div>
@@ -133,7 +133,7 @@ export function TopGovStrip() {
                 </ul>
               </div>
               <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                For technical queries during evaluation, refer to the pre-loaded synthetic demo batches or switch between College, AICTE, and Student roles on the landing page.
+                For technical queries, review institution batch details or switch between College, AICTE, and Student portals.
               </p>
             </div>
           </div>

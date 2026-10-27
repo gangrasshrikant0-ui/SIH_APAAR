@@ -19,6 +19,8 @@ export function createDatabase(databasePath = process.env.DATABASE_PATH || path.
       apaar_id TEXT NOT NULL,
       programme TEXT NOT NULL,
       year_of_study TEXT NOT NULL,
+      dob TEXT,
+      admission_status TEXT,
       category TEXT NOT NULL,
       oci_status TEXT,
       foreign_national_status TEXT,
@@ -107,6 +109,8 @@ export function createDatabase(databasePath = process.env.DATABASE_PATH || path.
   `);
   const studentColumns = db.prepare("PRAGMA table_info(students)").all().map((column) => column.name);
   if (!studentColumns.includes("nri_status")) db.exec("ALTER TABLE students ADD COLUMN nri_status TEXT");
+  if (!studentColumns.includes("dob")) db.exec("ALTER TABLE students ADD COLUMN dob TEXT");
+  if (!studentColumns.includes("admission_status")) db.exec("ALTER TABLE students ADD COLUMN admission_status TEXT");
   const auditColumns = db.prepare("PRAGMA table_info(audit_log)").all().map((column) => column.name);
   if (!auditColumns.includes("actor")) db.exec("ALTER TABLE audit_log ADD COLUMN actor TEXT");
   if (!auditColumns.includes("role")) db.exec("ALTER TABLE audit_log ADD COLUMN role TEXT");
