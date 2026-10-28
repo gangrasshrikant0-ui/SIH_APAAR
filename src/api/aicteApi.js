@@ -11,7 +11,7 @@ export const aicteApi = {
     return Object.values(getStoredBatches()).flatMap((batch) =>
       (batch.records || [])
         .filter((record) => record.status === "ACCEPTED")
-        .map((record) => ({ ...record, batchId: batch.batchId, institutionName: batch.institutionName }))
+        .map((record) => ({ ...record, batchId: batch.batchId, institutionId: batch.institutionId, institutionName: batch.institutionName }))
     );
   },
 
@@ -26,6 +26,7 @@ export const aicteApi = {
         aicteId: "AICTE-1-1029384",
         name: "Pune Institute of Computer Technology (PICT)",
         shortName: "PICT Pune",
+        state: "Maharashtra",
         campus: "Dhankawadi, Pune",
         approvedIntake: 420,
         batchId: "BATCH-2026-ENG-0402"
@@ -35,6 +36,7 @@ export const aicteApi = {
         aicteId: "AICTE-1-1099231",
         name: "College of Engineering Pune (COEP Technological University)",
         shortName: "COEP Tech",
+        state: "Maharashtra",
         campus: "Shivajinagar, Pune",
         approvedIntake: 270,
         batchId: "BATCH-2026-COEP-0101"
@@ -44,6 +46,7 @@ export const aicteApi = {
         aicteId: "AICTE-1-1088421",
         name: "Veermata Jijabai Technological Institute (VJTI Mumbai)",
         shortName: "VJTI Mumbai",
+        state: "Maharashtra",
         campus: "Matunga, Mumbai",
         approvedIntake: 120,
         batchId: "BATCH-2026-VJTI-0202"
@@ -142,7 +145,7 @@ export const aicteApi = {
       changeSummary: `${records.length} record(s) returned.`,
       severity: "INFO"
     });
-    return { records, hasActiveElsewhere: activeInstitutions.size > 1 };
+    return { records, allRecords: records, hasActiveElsewhere: activeInstitutions.size > 1 };
   },
 
   async createCollegeUser({ aicteNo, collegeName, email, issuingAuthority }) {

@@ -5,6 +5,18 @@ import { collegeApi } from "../../api/collegeApi";
 import { getBackendStudentJourney, isBackendConfigured } from "../../api/ingestionApi";
 import { StudentCertificate } from "../../components/StudentCertificate";
 
+const REQUEST_STORAGE_KEY = "apaar_verification_requests_v1";
+
+function getVerifierRequests(apaarId) {
+  try {
+    const raw = localStorage.getItem(REQUEST_STORAGE_KEY);
+    const requests = raw ? JSON.parse(raw) : [];
+    return requests.filter((request) => request.apaarId === apaarId);
+  } catch {
+    return [];
+  }
+}
+
 export function StudentJourney({ role }) {
   const [apaarId, setApaarId] = useState("");
   const [result, setResult] = useState(null);
@@ -26,13 +38,15 @@ export function StudentJourney({ role }) {
         const backend = await getBackendStudentJourney(apaarId, role);
         if (backend.offline) {
           setBackendNotice("Connection unavailable; showing locally available records.");
-          setResult(role === "AICTE" ? await aicteApi.getStudentJourney(apaarId) : await collegeApi.getStudentJourney(apaarId));
+          const data = role === "AICTE" ? await aicteApi.getStudentJourney(apaarId) : await collegeApi.getStudentJourney(apaarId);
+          setResult({ ...data, verifierRequests: getVerifierRequests(apaarId) });
         } else {
           setBackendNotice("");
-          setResult(backend);
+          setResult({ ...backend, verifierRequests: getVerifierRequests(apaarId) });
         }
       } else {
-        setResult(role === "AICTE" ? await aicteApi.getStudentJourney(apaarId) : await collegeApi.getStudentJourney(apaarId));
+        const data = role === "AICTE" ? await aicteApi.getStudentJourney(apaarId) : await collegeApi.getStudentJourney(apaarId);
+        setResult({ ...data, verifierRequests: getVerifierRequests(apaarId) });
       }
     } catch (searchError) {
       setError(searchError.message || "Unable to search for this APAAR ID.");
@@ -40,6 +54,10 @@ export function StudentJourney({ role }) {
       setLoading(false);
     }
   };
+
+  const resultRecord = result?.records?.[0] || null;
+  const recordsForDisplay = result?.records || [];
+  const belongsToCollege = role !== "COLLEGE" || recordsForDisplay.length > 0;
 
   return (
     <div className="gov-container">
@@ -73,36 +91,79 @@ export function StudentJourney({ role }) {
       {result && result.records.length === 0 && (
         <div className="gov-card" role="status">No record found for this APAAR ID.</div>
       )}
-      {result?.hasActiveElsewhere && (
+      {role === "COLLEGE" && result && result.records.length === 0 && result.allRecords?.length > 0 && (
         <div className="gov-card" role="status" style={{ borderColor: "#F59E0B", background: "#FFFBEB", color: "#92400E", marginBottom: "1rem" }}>
-          <AlertTriangle size={18} />           Active enrolment at another institution. AICTE review required.
+          This student record exists in the national database, but does not belong to your institution.
         </div>
       )}
-      {result?.records.length > 0 && (
-        <div className="gov-card">
+      {result?.hasActiveElsewhere && (
+        <div className="gov-card" role="status" style={{ borderColor: "#F59E0B", background: "#FFFBEB", color: "#92400E", marginBottom: "1rem" }}>
+          <AlertTriangle size={18} /> Active enrolment at another institution. AICTE review required.
+        </div>
+      )}
+      {recordsForDisplay.length > 0 && (
+        <div className="gov-card" style={{ marginBottom: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
+            <div>
+              <div className="verification-label">Student name</div>
+              <strong>{resultRecord?.studentName || "—"}</strong>
+            </div>
+            <div>
+              <div className="verification-label">Category</div>
+              <strong>{resultRecord?.category || "—"}</strong>
+            </div>
+            <div>
+              <div className="verification-label">Verification status</div>
+              <strong>{resultRecord?.status === "ACCEPTED" ? "VERIFIED" : resultRecord?.status || "NOT_FOUND"}</strong>
+            </div>
+            <div>
+              <div className="verification-label">Admission date</div>
+              <strong>{resultRecord?.admissionDate || "—"}</strong>
+            </div>
+            <div>
+              <div className="verification-label">Branch / programme</div>
+              <strong>{resultRecord?.programme || "—"}</strong>
+            </div>
+            <div>
+              <div className="verification-label">Year of study</div>
+              <strong>{resultRecord?.yearOfStudy || "—"}</strong>
+            </div>
+          </div>
+
           <div className="data-table-wrapper">
             <table className="data-table">
-              <thead><tr><th>Institution</th><th>Programme</th><th>Year</th><th>Status</th><th>Source</th><th>Open issues</th></tr></thead>
+              <thead><tr><th>Institution</th><th>Programme</th><th>Year</th><th>Category</th><th>Admission</th><th>Verification status</th><th>Source</th></tr></thead>
               <tbody>
-                {result.records.map((record) => (
+                {recordsForDisplay.map((record) => (
                   <tr key={`${record.batchId}-${record.id}`}>
                     <td>{record.institutionName}</td>
                     <td>{record.programme}</td>
                     <td>{record.yearOfStudy}</td>
-                    <td>{record.status}</td>
+                    <td>{record.category || "—"}</td>
+                    <td>{record.admissionDate || "—"}</td>
+                    <td>{record.status === "ACCEPTED" ? "VERIFIED" : record.status}</td>
                     <td>{record.source || "BULK_UPLOAD"}</td>
-                    <td>{record.issueType || "None"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="journey-request-list">
+            <h3>External verifier requests</h3>
+            {result?.verifierRequests?.length ? result.verifierRequests.map((request) => (
+              <div className="journey-request-item" key={request.id}>
+                <strong>{request.requesterName}</strong>
+                <span>{request.requesterOrganisation || "Organisation not provided"}</span>
+                <span>{request.status || "PENDING"} · {request.purposes?.join(", ") || "Purpose not specified"}</span>
+              </div>
+            )) : <p>No external verifier requests are recorded for this APAAR ID.</p>}
           </div>
         </div>
       )}
       {result?.activeElsewhere && role === "COLLEGE" && (
         <div className="gov-card" role="status">Active enrolment at another institution. AICTE review required.</div>
       )}
-      {role === "COLLEGE" && <StudentCertificate />}
+      {role === "COLLEGE" && belongsToCollege && <StudentCertificate />}
     </div>
   );
 }

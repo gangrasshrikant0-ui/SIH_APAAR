@@ -5,7 +5,7 @@ import { authApi } from "../api/authApi";
 import { listDemoLoginHints } from "../mocks/demoReference.js";
 
 const roleConfig = {
-  aicte: { role: "AICTE", label: "AICTE Administrator", icon: ShieldCheck, destination: "/aicte/workbench" },
+  aicte: { role: "AICTE", label: "AICTE Administrator", icon: ShieldCheck, destination: "/aicte/dashboard" },
   college: { role: "COLLEGE", label: "College / Institution", icon: Building2, destination: "/college/upload" },
   student: { role: "STUDENT", label: "Student", icon: GraduationCap, destination: "/student/portal" }
 };

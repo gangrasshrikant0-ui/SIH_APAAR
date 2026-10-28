@@ -174,7 +174,7 @@ export function CollegeReports() {
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-primary"
               onClick={handleDownloadAnomalyCSV}
             >
               <Download size={14} />
@@ -201,10 +201,25 @@ export function CollegeReports() {
           <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "1.25rem", lineHeight: "1.5" }}>
             Download the complete student validation and issue-status report for this institution.
           </p>
-          <button type="button" className="btn btn-primary" onClick={handleDownloadCompleteCSV}>
-            <Download size={14} />
-            <span>Download Complete Report</span>
-          </button>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+  <button
+    type="button"
+    className="btn btn-primary"
+    onClick={handleDownloadCompleteCSV}
+  >
+    <Download size={14} />
+    <span>Download Complete Report</span>
+  </button>
+
+  <button
+    type="button"
+    className="btn btn-secondary"
+    onClick={() => handlePrintReport("COMPLETE")}
+  >
+    <Printer size={14} />
+    <span>Printable View (PDF)</span>
+  </button>
+</div>
         </div>
       </div>
 

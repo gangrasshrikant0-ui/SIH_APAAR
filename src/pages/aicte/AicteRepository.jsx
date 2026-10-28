@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { RefreshCw, Search, FileText } from "lucide-react";
+import { DonutChart, BarChart } from "../../components/MetricsCharts";
 import { aicteApi } from "../../api/aicteApi";
 import { getBackendRepository, isBackendConfigured } from "../../api/ingestionApi";
 
@@ -18,16 +19,26 @@ export function AicteRepository() {
   const [offlineNotice, setOfflineNotice] = useState("");
 
   const institutionCards = useMemo(() => {
-    const counts = records.reduce((acc, record) => {
+    const baseNames = dashboardStats?.institutions?.map((institution) => institution.name) || [
+      "Pune Institute of Computer Technology (PICT)",
+      "College of Engineering Pune (COEP Technological University)",
+      "Veermata Jijabai Technological Institute (VJTI Mumbai)"
+    ];
+
+    const counts = (dashboardStats?.institutions || []).reduce((acc, institution) => {
+      acc[institution.name] = institution.acceptedEnrolment || 0;
+      return acc;
+    }, {});
+    records.reduce((acc, record) => {
       const key = record.institutionName || "Unknown";
-      acc[key] = (acc[key] || 0) + 1;
+      if (!(key in acc)) acc[key] = 0;
       return acc;
     }, {});
 
-    return Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
+    return [...new Set([...baseNames, ...Object.keys(counts)])]
+      .map((name) => ({ name, count: counts[name] || 0 }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [records]);
+  }, [dashboardStats, records]);
 
   useEffect(() => {
     let active = true;
@@ -50,8 +61,11 @@ export function AicteRepository() {
   }, []);
 
   const institutions = useMemo(
-    () => [...new Set(records.map((record) => record.institutionName))],
-    [records]
+    () => [...new Set([
+      ...(dashboardStats?.institutions?.map((institution) => institution.name) || []),
+      ...records.map((record) => record.institutionName)
+    ].filter(Boolean))],
+    [dashboardStats, records]
   );
   const programmes = useMemo(() => [...new Set(records.map((record) => record.programme))], [records]);
   const years = useMemo(() => [...new Set(records.map((record) => record.yearOfStudy))], [records]);
@@ -98,15 +112,68 @@ export function AicteRepository() {
         {offlineNotice && <p className="gov-alert gov-alert-warning">{offlineNotice}</p>}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
-        {[
-          ["Overall Enrolled Students", 30],
-          ["Unique students (by APAAR ID)", dashboardStats?.uniqueStudentsByApaar ?? 18],
-          ["Active students", 30]
-        ].map(([label, value]) => <div className="gov-card" key={label} style={{ padding: "0.85rem 1rem" }}><strong style={{ fontSize: "0.78rem" }}>{label}</strong><div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#166534" }}>{value}</div></div>)}
-      </div>
+      {/* Synthetic national-level repository statistics */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "0.75rem",
+    marginBottom: "1rem"
+  }}
+>
+  {[
+    ["Overall Enrolled Students", 1087320],
+    ["Unique students (by APAAR ID)", 1072845],
+    ["Active students", 1068912]
+  ].map(([label, value]) => (
+    <div
+      className="gov-card"
+      key={label}
+      style={{ padding: "0.85rem 1rem" }}
+    >
+      <strong style={{ fontSize: "0.78rem" }}>
+        {label}
+      </strong>
 
-      <div className="filter-bar" role="search" aria-label="Central repository filters">
+      <div
+        style={{
+          fontSize: "1.5rem",
+          fontWeight: 800,
+          color: "#166534"
+        }}
+      >
+        {Number(value).toLocaleString("en-IN")}
+      </div>
+    </div>
+  ))}
+</div>
+
+<div className="dashboard-chart-grid">
+  <div className="gov-card">
+    <div className="gov-card-header"><h3>Repository status overview</h3></div>
+    <DonutChart
+      label="Repository records by institution"
+      data={institutionCards.map((item, index) => ({
+        label: item.name.split(" (")[0],
+        value: item.count,
+        color: ["#2563EB", "#16A34A", "#F59E0B"][index % 3]
+      }))}
+    />
+  </div>
+  <div className="gov-card">
+    <div className="gov-card-header"><h3>Accepted records by institution</h3></div>
+    <BarChart
+      label="Accepted records by institution"
+      data={institutionCards.map((item, index) => ({
+        label: item.name.split(" (")[0],
+        value: item.count,
+        color: ["#2563EB", "#16A34A", "#F59E0B"][index % 3]
+      }))}
+    />
+  </div>
+</div>
+
+<div className="filter-bar" role="search" aria-label="Central repository filters">
         <div className="filter-group" style={{ minWidth: "240px", flex: 2 }}>
           <label className="filter-label" htmlFor="repository-search">Search accepted records</label>
           <div style={{ position: "relative" }}>
@@ -141,7 +208,7 @@ export function AicteRepository() {
         <div className="gov-card" style={{ padding: "1rem", marginBottom: "1rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
             <h3 style={{ margin: 0, fontSize: "1.05rem", color: "var(--gov-navy-900)" }}>Institutions in repository</h3>
-            <span className="tag-badge" style={{ background: "#EEF2FF", color: "#4338CA" }}>3 institutions</span>
+            <span className="tag-badge" style={{ background: "#EEF2FF", color: "#4338CA" }}>{institutionCards.length} institutions</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem" }}>
             {institutionCards.map((institutionItem) => (
@@ -204,6 +271,7 @@ export function AicteRepository() {
           </div>
         </>
       )}
-      {filtered.length === 0 && institutionSelectionActive && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setQuery(""); setInstitution("ALL"); setProgramme("ALL"); setYear("ALL"); setPage(1); }}>Clear filters</button>}    </div>
+      {filtered.length === 0 && institutionSelectionActive && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setQuery(""); setInstitution("ALL");
+ setProgramme("ALL"); setYear("ALL"); setPage(1); }}>Clear filters</button>}    </div>
   );
 }

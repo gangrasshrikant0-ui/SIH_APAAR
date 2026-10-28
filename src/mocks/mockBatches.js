@@ -34,6 +34,47 @@ function seedAcceptedRecord(record, existingReferences) {
   };
 }
 
+export const PICT_ACCEPTED_RECORDS = (() => {
+  const programmePlan = [
+    ["COMP", "Computer Engineering", 99],
+    ["IT", "Information Technology", 85],
+    ["ENTC", "Electronics & Telecommunication Engineering", 75],
+    ["AIDS", "Artificial Intelligence & Data Science", 40]
+  ];
+  let sequence = 0;
+  return programmePlan.flatMap(([programmeCode, programme, count]) =>
+    Array.from({ length: count }, (_, index) => {
+      sequence += 1;
+      const apaarId = String(700000000000 + sequence);
+      return {
+        id: `PICT-ACCEPTED-${String(sequence).padStart(3, "0")}`,
+        studentId: `PICT-${index < 25 ? "FE" : index < 50 ? "SE" : index < 75 ? "TE" : "BE"}-${programmeCode}-${String(index + 1).padStart(3, "0")}`,
+        studentName: `PICT Demo Student ${String(sequence).padStart(3, "0")}`,
+        apaarId,
+        programme,
+        programmeCode,
+        yearOfStudy: index < 25 ? "FE" : index < 50 ? "SE" : index < 75 ? "TE" : "BE",
+        category: ["GENERAL", "OBC", "SC", "EWS"][index % 4],
+        admissionDate: "2026-08-10",
+        admissionStatus: "ADMITTED",
+        gender: index % 2 === 0 ? "Male" : "Female",
+        status: "ACCEPTED",
+        issueType: null,
+        issueStatus: "RESOLVED",
+        reason: "Synthetic accepted demo record.",
+        evidence: "Valid format, no conflicts, within approved intake.",
+        owner: "System Auto-Validator",
+        requiredAction: "Accepted institutional record.",
+        dueDate: null,
+        isOverdue: false,
+        isEscalated: false,
+        validationNote: "format-checked, not identity-verified",
+        recordReference: `APR-PICT-${String(sequence).padStart(6, "0")}`
+      };
+    })
+  );
+})();
+
 export { STANDARD_COLUMNS } from "../utils/columnMapping.js";
 
 export const FAULTY_MOCK_BATCH = {
@@ -91,6 +132,7 @@ export const FAULTY_MOCK_BATCH = {
       yearOfStudy: "SE",
       category: "OBC",
       admissionDate: "2026-08-12",
+      dob: "2006-08-12",
       gender: "Female",
       status: "ACTION_REQUIRED",
       issueType: "WRONG_FORMAT",
@@ -292,14 +334,14 @@ export const FAULTY_MOCK_BATCH = {
       id: "REC-009",
       studentId: "SE-COMP-001",
       studentName: "Aarav Sharma",
-      apaarId: "111122223333",
+      apaarId: "984251638019",
       programme: "Computer Engineering",
       programmeCode: "COMP",
       yearOfStudy: "SE",
       category: "GENERAL",
       admissionDate: "2026-08-01",
       gender: "Male",
-      status: "READY_TO_ACCEPT",
+      status: "ACCEPTED",
       issueType: null,
       issueStatus: "RESOLVED",
       reason: "All validation checks passed.",
@@ -309,7 +351,8 @@ export const FAULTY_MOCK_BATCH = {
       dueDate: null,
       isOverdue: false,
       isEscalated: false,
-      validationNote: "format-checked, not identity-verified"
+      validationNote: "format-checked, not identity-verified",
+      recordReference: "EDU-PICT-2026-A9F82B"
     },
     {
       id: "REC-010",
@@ -619,7 +662,8 @@ export const FAULTY_MOCK_BATCH = {
       isOverdue: false,
       isEscalated: true,
       validationNote: "format-checked, not identity-verified"
-    }
+    },
+    ...PICT_ACCEPTED_RECORDS
   ]
 };
 

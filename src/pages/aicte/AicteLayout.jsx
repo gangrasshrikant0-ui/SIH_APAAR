@@ -34,62 +34,41 @@ export function AicteLayout() {
       {/* AICTE Bureau Top Banner */}
       <div style={{ background: "linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)", color: "#FFFFFF", padding: "1.25rem 0", borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
         <div className="gov-container">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flex: 1 }}>
               <div style={{ width: "48px", height: "48px", borderRadius: "10px", background: "rgba(255, 255, 255, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                 <ShieldCheck size={26} />
               </div>
               <div>
-                <span style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "#C7D2FE", fontWeight: "700" }}>
+                <div style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "#C7D2FE", fontWeight: "700" }}>
                   All India Council for Technical Education &bull; Central Review Bureau
-                </span>
-                <h1 style={{ fontSize: "1.35rem", color: "#FFFFFF", fontWeight: "800", margin: "2px 0" }}>
+                </div>
+                <div style={{ fontSize: "1.15rem", color: "#FFFFFF", fontWeight: "800", margin: "2px 0 0" }}>
                   National Student Data Verification &amp; Adjudication Portal
-                </h1>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", fontSize: "0.8125rem", color: "#E0E7FF" }}>
-                  <span>Reviewer: <strong>{currentUser?.name || "Dr. M. Jagadesh Kumar"}</strong></span>
-                  <span>&bull;</span>
-                  <span>Jurisdiction: <strong>National (All AICTE Institutions)</strong></span>
-                  <span>&bull;</span>
-                  <span style={{ color: "#86EFAC" }}>Central Oversight Active</span>
                 </div>
               </div>
             </div>
 
-            {/* Quick Metrics Badges */}
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
-              <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
-                <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>PICT Enrolled</span>
-                <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#86EFAC" }}>30</span>
-              </div>
-              <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
-                <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>Unique by APAAR</span>
-                <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#FDE68A" }}>{stats?.uniqueStudentsByApaar ?? 18}</span>
-              </div>
-              <div style={{ background: "rgba(0, 0, 0, 0.3)", padding: "0.5rem 0.85rem", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "center" }}>
-                <span style={{ fontSize: "0.7rem", color: "#CBD5E1", display: "block" }}>Active Students</span>
-                <span style={{ fontSize: "1.1rem", fontWeight: "800", color: "#FCA5A5" }}>30</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.45rem",
-                  background: "rgba(255, 255, 255, 0.08)",
-                  color: "#FFFFFF",
-                  border: "1px solid rgba(255, 255, 255, 0.2)",
-                  borderRadius: "8px",
-                  padding: "0.55rem 0.9rem",
-                  cursor: "pointer",
-                  fontWeight: "700"
-                }}
-              >
-                <LogOut size={15} />
-                <span>Logout</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                background: "rgba(255, 255, 255, 0.08)",
+                color: "#FFFFFF",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "8px",
+                padding: "0.7rem 1rem",
+                cursor: "pointer",
+                fontWeight: "700",
+                marginLeft: "auto"
+              }}
+            >
+              <LogOut size={15} />
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </div>

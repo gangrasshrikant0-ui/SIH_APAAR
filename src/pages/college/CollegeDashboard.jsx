@@ -18,6 +18,7 @@ import {
 import { collegeApi } from "../../api/collegeApi";
 import { StatusBadge } from "../../components/StatusBadge";
 import { getBackendDashboard, isBackendConfigured } from "../../api/ingestionApi";
+import { DonutChart, BarChart } from "../../components/MetricsCharts";
 
 export function CollegeDashboard() {
   const [stats, setStats] = useState(null);
@@ -100,9 +101,11 @@ export function CollegeDashboard() {
             <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)", fontWeight: "700" }}>APPROVED INTAKE</span>
             <Building2 size={18} style={{ color: "var(--gov-navy-600)" }} />
           </div>
+
           <div style={{ fontSize: "2.25rem", fontWeight: "800", color: "var(--gov-navy-900)", lineHeight: "1.1" }}>
             {stats.approvedIntake}
           </div>
+
           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginTop: "6px" }}>
             AICTE Sanction (4 Departments)
           </span>
@@ -150,6 +153,31 @@ export function CollegeDashboard() {
             <span>&bull;</span>
             <span>Escalated: <strong style={{ color: stats.escalatedAnomalies > 0 ? "#7C3AED" : "inherit" }}>{stats.escalatedAnomalies}</strong></span>
           </div>
+        </div>
+      </div>
+
+      <div className="dashboard-chart-grid">
+        <div className="gov-card">
+          <div className="gov-card-header"><h3>Record status distribution</h3></div>
+          <DonutChart
+            label="College record status distribution"
+            data={[
+              { label: "Accepted", value: stats.acceptedEnrolment, color: "#16A34A" },
+              { label: "Ready", value: stats.readyToAccept || 0, color: "#2563EB" },
+              { label: "Anomalies", value: stats.openAnomalies, color: "#DC2626" }
+            ]}
+          />
+        </div>
+        <div className="gov-card">
+          <div className="gov-card-header"><h3>Programme comparison</h3></div>
+          <BarChart
+            label="Accepted enrolment by programme"
+            data={stats.programmes.map((programme) => ({
+              label: programme.code,
+              value: programme.acceptedEnrolment,
+              color: programme.anomaliesCount > 0 ? "#DC2626" : "#2563EB"
+            }))}
+          />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { GovHeader } from "./components/GovHeader";
 import { GovFooter } from "./components/GovFooter";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -48,8 +48,10 @@ function LegacyStudentRoute() {
   return <Navigate to="/" replace />;
 }
 
-function App() {
+function AppContent() {
   const currentUser = getCurrentUser();
+  const location = useLocation();
+  const hideGovHeader = ["/aicte", "/student", "/external"].some((prefix) => location.pathname.startsWith(prefix));
 
   useEffect(() => {
     initializeStore();
@@ -73,10 +75,12 @@ function App() {
   }, []);
 
   return (
-    <BrowserRouter>
+    <>
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
         {/* Government Header with Logo & Role Controls */}
-        {currentUser?.role !== "AICTE" && <GovHeader />}
+        {!hideGovHeader &&
+          currentUser?.role !== "AICTE" &&
+          currentUser?.role !== "COLLEGE" && <GovHeader />}
 
         {/* Dynamic Route Content */}
         <div style={{ flex: 1 }}>
@@ -165,6 +169,14 @@ function App() {
         {/* Government Footer */}
         <GovFooter />
       </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }

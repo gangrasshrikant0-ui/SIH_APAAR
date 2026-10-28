@@ -34,7 +34,7 @@ export function CollegeConsentPage() {
         </p>
         <div style={{ background: "#F8FAFC", border: "1px solid var(--border-light)", borderRadius: "8px", padding: "1.25rem", lineHeight: 1.6, fontSize: "0.9375rem" }}>
           <p>By proceeding, I confirm that I am an authorized representative of the institution assigned to this account.</p>
-          <p>I acknowledge that EDUVÉRIFY processes academic student data for institutional submission, validation, and monitoring.</p>
+          <p>I acknowledge that AICTE VIDYA processes academic student data for institutional submission, validation, and monitoring.</p>
           <p>I understand that submitted records may contain sensitive student information, including student identifiers and academic details.</p>
           <p>I consent, on behalf of the institution, to the processing and display of student records submitted through this portal for the purposes of:</p>
           <ul style={{ margin: "0.75rem 0 0.75rem 1.25rem" }}>

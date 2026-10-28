@@ -29,6 +29,7 @@ export function GovHeader() {
       <header className="college-auth-header">
         <div className="college-auth-header-inner">
           <Link to="/college/upload" className="college-auth-brand" aria-label="College portal home">
+            <img src="/aicte-vidya-logo.jpe" alt="AICTE VIDYA logo" className="header-logo-image" />
             <Building2 size={20} />
             <span>{currentUser.institutionName}</span>
           </Link>
@@ -78,12 +79,10 @@ export function GovHeader() {
       <div className="gov-container gov-header-inner">
         {/* Brand / Logo */}
         <Link to="/" className="gov-brand" aria-label="Go to APAAR Platform Home">
-          <div className="gov-brand-icon">
-            <span>AP</span>
-          </div>
+          <img src="/aicte-vidya-logo.jpe" alt="AICTE VIDYA logo" className="header-logo-image" />
           <div className="gov-brand-titles">
             <span className="gov-brand-super">Academic Data Verification</span>
-            <span className="gov-brand-main">EDUVÉRIFY</span>
+            <span className="gov-brand-main">AICTE VIDYA</span>
             <span className="gov-brand-sub">Trusted records. Clear decisions.</span>
           </div>
         </Link>

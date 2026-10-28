@@ -458,6 +458,7 @@ function utilisationInBucket(u, bucket) {
 function IntakeReportView() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [offlineNotice, setOfflineNotice] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [instFilter, setInstFilter] = useState("ALL");
@@ -469,14 +470,32 @@ function IntakeReportView() {
     setLoading(true);
     try {
       const backend = isBackendConfigured() ? await getBackendReport("AICTE") : null;
+      const localRows = async () => {
+        const reportRows = await aicteApi.getIntakeReportRows();
+        if (reportRows.length) return reportRows;
+        const stats = await aicteApi.getAicteDashboardStats("ALL");
+        return stats.institutions.map((institution) => ({
+          institution: institution.shortName,
+          institutionFull: institution.name,
+          institutionId: institution.id,
+          programme: "All programmes",
+          programmeName: "All programmes",
+          year: "2026-2027",
+          approvedIntake: institution.approvedIntake,
+          acceptedEnrolment: institution.acceptedEnrolment,
+          utilisation: institution.utilisation,
+          openAnomalies: institution.openAnomalies,
+          escalated: institution.escalatedCount
+        }));
+      };
       if (backend?.offline) {
         setOfflineNotice("Connection unavailable; showing locally available records.");
-        setRows(await aicteApi.getIntakeReportRows());
+        setRows(await localRows());
       } else if (backend) {
         setOfflineNotice("");
-        setRows(backend.rows);
+        setRows(backend.rows?.length ? backend.rows : await localRows());
       } else {
-        setRows(await aicteApi.getIntakeReportRows());
+        setRows(await localRows());
       }
     } catch (e) {
       console.error(e);
@@ -997,7 +1016,7 @@ export function AicteReports() {
               status updates.
             </p>
             <span
-              className="btn btn-secondary btn-sm"
+              className="btn btn-primary btn-sm"
               style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
               aria-hidden="true"
             >

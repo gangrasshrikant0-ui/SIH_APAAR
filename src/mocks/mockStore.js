@@ -59,6 +59,17 @@ export function initializeStore() {
     };
     storageAdapter.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(initialBatches));
     storageAdapter.setItem(STORAGE_KEYS.CURRENT_BATCH_ID, FAULTY_MOCK_BATCH.batchId);
+  } else {
+    const storedBatches = JSON.parse(storageAdapter.getItem(STORAGE_KEYS.BATCHES) || "{}");
+    const pictBatch = storedBatches[FAULTY_MOCK_BATCH.batchId];
+    if (pictBatch && (
+      !(pictBatch.records || []).some((record) => String(record.id).startsWith("PICT-ACCEPTED-")) ||
+      !(pictBatch.records || []).some((record) => record.apaarId === "984251638019") ||
+      !(pictBatch.records || []).some((record) => record.studentName === "Ananya Patil" && record.dob === "2006-08-12")
+    )) {
+      storedBatches[FAULTY_MOCK_BATCH.batchId] = JSON.parse(JSON.stringify(FAULTY_MOCK_BATCH));
+      storageAdapter.setItem(STORAGE_KEYS.BATCHES, JSON.stringify(storedBatches));
+    }
   }
 
   if (!storageAdapter.getItem(STORAGE_KEYS.SETTINGS)) {

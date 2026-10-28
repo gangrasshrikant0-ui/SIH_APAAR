@@ -42,7 +42,7 @@ export function RoleSelectionPage() {
     <main className="roles-page">
       <div className="gov-container">
         <div className="page-heading">
-          <p className="landing-eyebrow">EDUVÉRIFY access</p>
+          <p className="landing-eyebrow">AICTE VIDYA access</p>
           <h1>Choose your role</h1>
           <p>Select the portal that matches your responsibilities.</p>
         </div>

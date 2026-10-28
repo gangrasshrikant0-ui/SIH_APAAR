@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { AlertCircle, CheckCircle, FileSearch, LockKeyhole, XCircle, Send, SearchCheck } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { AlertCircle, CheckCircle, FileSearch, LockKeyhole, SearchCheck, Send, XCircle } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { verificationApi } from "../../api/verificationApi";
 import { logAuditEvent } from "../../mocks/mockAuditLog";
@@ -13,6 +13,7 @@ const PURPOSE_OPTIONS = [
 ];
 
 const REQUEST_STORAGE_KEY = "apaar_verification_requests_v1";
+const STUDENT_VERIFICATION_KEY = "apaar_student_verification_v1";
 
 function ResultIcon({ status }) {
   if (status === "VALID") return <CheckCircle size={28} aria-hidden="true" />;
@@ -30,6 +31,52 @@ function readRequests() {
   }
 }
 
+function readVerificationRecords() {
+  try {
+    const raw = localStorage.getItem(STUDENT_VERIFICATION_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function seedVerifierDemoRequests() {
+  const existing = readRequests();
+  const hasDemoVerifierRequests = existing.some((entry) => entry.requesterName === "Meera Kapoor");
+  if (hasDemoVerifierRequests) return existing;
+
+  const demoEntries = [
+    {
+      id: "REQ-MEERA-APPROVED",
+      requesterName: "Meera Kapoor",
+      requesterPhone: "+91 98765 10101",
+      requesterOrganisation: "National Credential Review Office",
+      apaarId: "984251638019",
+      verificationCode: "EDU-222333-2026-24567",
+      purposes: ["Academic verification"],
+      requestedAt: "2026-10-27T13:00:00.000Z",
+      status: "APPROVED",
+      decidedAt: "2026-10-27T17:00:00.000Z"
+    },
+    {
+      id: "REQ-MEERA-REJECTED",
+      requesterName: "Meera Kapoor",
+      requesterPhone: "+91 98765 10101",
+      requesterOrganisation: "National Credential Review Office",
+      apaarId: "984251638019",
+      verificationCode: "EDU-222333-2026-99812",
+      purposes: ["Employment check"],
+      requestedAt: "2026-10-26T13:00:00.000Z",
+      status: "DENIED",
+      decidedAt: "2026-10-26T17:00:00.000Z"
+    }
+  ];
+
+  const next = [...demoEntries, ...existing];
+  localStorage.setItem(REQUEST_STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+
 export function ExternalVerifierVerify() {
   const [searchParams] = useSearchParams();
   const [reference, setReference] = useState(searchParams.get("reference") || "");
@@ -40,11 +87,18 @@ export function ExternalVerifierVerify() {
   const [activeTab, setActiveTab] = useState("request");
   const [requesterName, setRequesterName] = useState("");
   const [requesterPhone, setRequesterPhone] = useState("");
+  const [requesterOrganisation, setRequesterOrganisation] = useState("");
   const [requestApaarId, setRequestApaarId] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [selectedPurposes, setSelectedPurposes] = useState(["Employment check"]);
   const [requestFeedback, setRequestFeedback] = useState("");
-  const [statusLookup, setStatusLookup] = useState({ name: "", phone: "", apaarId: "" });
+  const [statusLookup, setStatusLookup] = useState({ name: "", phone: "", verificationCode: "" });
   const [statusResult, setStatusResult] = useState(null);
+  const [directVerificationResult, setDirectVerificationResult] = useState(null);
+
+  useEffect(() => {
+    seedVerifierDemoRequests();
+  }, []);
 
   const canVerify = reference.trim() && purpose && authorised && !loading;
 
@@ -68,8 +122,25 @@ export function ExternalVerifierVerify() {
 
   function handleSubmitRequest(event) {
     event.preventDefault();
-    if (!requesterName.trim() || !requesterPhone.trim() || !requestApaarId.trim() || selectedPurposes.length === 0) {
-      setRequestFeedback("Please enter your name, phone, APAAR ID and at least one verification purpose.");
+    if (!requesterName.trim() || !requesterPhone.trim() || !requesterOrganisation.trim() || !requestApaarId.trim() || selectedPurposes.length === 0) {
+      setRequestFeedback("Please fill in all required fields: your name, organisation, phone, student's APAAR ID and at least one purpose. The unique verification code is optional.");
+      return;
+    }
+
+    const enteredCode = verificationCode.trim();
+    if (enteredCode) {
+      const verificationRecords = readVerificationRecords();
+      const matchedRecord = Object.values(verificationRecords).find((entry) =>
+        entry.verificationCode?.toLowerCase() === enteredCode.toLowerCase()
+      );
+      const matchedStudent = matchedRecord && matchedRecord.apaarId === requestApaarId.trim()
+        ? matchedRecord
+        : null;
+      setDirectVerificationResult({
+        status: matchedStudent?.status === "VERIFIED" ? "VERIFIED" : "NOT_VERIFIED",
+        apaarId: requestApaarId.trim()
+      });
+      setRequestFeedback("");
       return;
     }
 
@@ -77,7 +148,9 @@ export function ExternalVerifierVerify() {
       id: `REQ-${Date.now()}`,
       requesterName: requesterName.trim(),
       requesterPhone: requesterPhone.trim(),
+      requesterOrganisation: requesterOrganisation.trim(),
       apaarId: requestApaarId.trim(),
+      verificationCode: "",
       purposes: selectedPurposes,
       requestedAt: new Date().toISOString(),
       status: "PENDING"
@@ -86,10 +159,12 @@ export function ExternalVerifierVerify() {
     const requests = readRequests();
     requests.unshift(item);
     localStorage.setItem(REQUEST_STORAGE_KEY, JSON.stringify(requests));
-    setRequestFeedback("Request submitted successfully. The student can approve or deny your access request.");
+    setRequestFeedback("Request submitted successfully.");
     setRequesterName("");
     setRequesterPhone("");
+    setRequesterOrganisation("");
     setRequestApaarId("");
+    setVerificationCode("");
     setSelectedPurposes(["Employment check"]);
     logAuditEvent({
       actorName: requesterName.trim(),
@@ -97,8 +172,8 @@ export function ExternalVerifierVerify() {
       actorEmail: "verifier@credential-review.example",
       actionType: "VERIFICATION_REQUEST_CREATED",
       resourceType: "STUDENT_DATA_REQUEST",
-      resourceId: requestApaarId.trim(),
-      details: `External verifier requested access to student record for purposes: ${selectedPurposes.join(", ")}.`,
+      resourceId: verificationCode.trim(),
+      details: `External verifier requested access to student record with code ${verificationCode.trim()} for purposes: ${selectedPurposes.join(", ")}.`,
       changeSummary: "Verification request sent to student consent queue",
       severity: "INFO",
       issuingAuthority: "External verifier"
@@ -110,14 +185,16 @@ export function ExternalVerifierVerify() {
     const requests = readRequests();
     const item = [...requests].find((entry) =>
       entry.requesterName?.toLowerCase() === statusLookup.name.trim().toLowerCase() &&
-      entry.requesterPhone === statusLookup.phone.trim() &&
-      entry.apaarId === statusLookup.apaarId.trim()
+      entry.requesterPhone === statusLookup.phone.trim()
     );
 
-    setStatusResult(item
-      ? { status: item.status || "PENDING", requestId: item.id, requestedAt: item.requestedAt }
-      : { status: "NOT_FOUND", requestId: "—", requestedAt: null }
-    );
+    if (!item) {
+      setStatusResult({ status: "NOT_FOUND", requestId: "—", requestedAt: null });
+      return;
+    }
+
+    const finalStatus = item.status || "PENDING";
+    setStatusResult({ status: finalStatus, requestId: item.id, requestedAt: item.requestedAt });
   }
 
   return (
@@ -128,30 +205,38 @@ export function ExternalVerifierVerify() {
             <Send size={14} /> Generate request
           </button>
           <button type="button" className={activeTab === "status" ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"} onClick={() => setActiveTab("status")}>
-            <SearchCheck size={14} /> Check status
+            <SearchCheck size={14} /> Check Status
           </button>
         </div>
 
         {activeTab === "request" ? (
           <form onSubmit={handleSubmitRequest} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div>
-              <label className="filter-label" htmlFor="requester-name">Your name</label>
-              <input id="requester-name" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} className="search-input" style={{ width: "100%" }} />
+              <label className="filter-label" htmlFor="requester-name">Your name <span className="required-asterisk">*</span></label>
+              <input id="requester-name" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} className="search-input" style={{ width: "100%" }} required />
             </div>
             <div>
-              <label className="filter-label" htmlFor="requester-phone">Phone number</label>
-              <input id="requester-phone" value={requesterPhone} onChange={(e) => setRequesterPhone(e.target.value)} className="search-input" style={{ width: "100%" }} />
+              <label className="filter-label" htmlFor="requester-organisation">Organisation name <span className="required-asterisk">*</span></label>
+              <input id="requester-organisation" value={requesterOrganisation} onChange={(e) => setRequesterOrganisation(e.target.value)} className="search-input" style={{ width: "100%" }} required />
             </div>
             <div>
-              <label className="filter-label" htmlFor="requester-apaar">Student APAAR ID</label>
-              <input id="requester-apaar" value={requestApaarId} onChange={(e) => setRequestApaarId(e.target.value)} className="search-input" style={{ width: "100%" }} />
+              <label className="filter-label" htmlFor="requester-phone">Phone number <span className="required-asterisk">*</span></label>
+              <input id="requester-phone" value={requesterPhone} onChange={(e) => setRequesterPhone(e.target.value)} className="search-input" style={{ width: "100%" }} required />
             </div>
             <div>
-              <label className="filter-label">Information requested</label>
+              <label className="filter-label" htmlFor="requester-apaar">Student APAAR ID <span className="required-asterisk">*</span></label>
+              <input id="requester-apaar" value={requestApaarId} onChange={(e) => setRequestApaarId(e.target.value)} className="search-input" style={{ width: "100%" }} required />
+            </div>
+            <div>
+              <label className="filter-label" htmlFor="verification-code">Unique verification code</label>
+              <input id="verification-code" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} className="search-input" style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="filter-label">Information requested <span className="required-asterisk">*</span></label>
               <div style={{ display: "grid", gap: "0.5rem", marginTop: "0.4rem" }}>
                 {PURPOSE_OPTIONS.map((option) => (
                   <label key={option} style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                    <input type="checkbox" checked={selectedPurposes.includes(option)} onChange={() => togglePurpose(option)} />
+                    <input type="checkbox" checked={selectedPurposes.includes(option)} onChange={() => togglePurpose(option)} required={selectedPurposes.length === 0} />
                     <span>{option}</span>
                   </label>
                 ))}
@@ -161,6 +246,11 @@ export function ExternalVerifierVerify() {
               <Send size={16} /> Send access request
             </button>
             {requestFeedback && <div className="gov-alert gov-alert-warning">{requestFeedback}</div>}
+            {directVerificationResult && (
+              <div className={`gov-alert ${directVerificationResult.status === "VERIFIED" ? "gov-alert-success" : "gov-alert-warning"}`}>
+                Student verification status: <strong>{directVerificationResult.status === "VERIFIED" ? "VERIFIED" : "NOT VERIFIED"}</strong>
+              </div>
+            )}
           </form>
         ) : (
           <form onSubmit={handleCheckStatus} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -171,10 +261,6 @@ export function ExternalVerifierVerify() {
             <div>
               <label className="filter-label" htmlFor="status-phone">Phone number</label>
               <input id="status-phone" value={statusLookup.phone} onChange={(e) => setStatusLookup({ ...statusLookup, phone: e.target.value })} className="search-input" style={{ width: "100%" }} />
-            </div>
-            <div>
-              <label className="filter-label" htmlFor="status-apaar">APAAR ID</label>
-              <input id="status-apaar" value={statusLookup.apaarId} onChange={(e) => setStatusLookup({ ...statusLookup, apaarId: e.target.value })} className="search-input" style={{ width: "100%" }} />
             </div>
             <button type="submit" className="btn btn-secondary">
               <SearchCheck size={16} /> Check status
@@ -216,20 +302,20 @@ export function ExternalVerifierVerify() {
           )
         ) : (
           !statusResult ? (
-            <p style={{ color: "var(--text-muted)" }}>Enter the requester details to check the current status.</p>
+            <p style={{ color: "var(--text-muted)" }}>Enter the verification code to check if the student has approved your request.</p>
           ) : statusResult.status === "NOT_FOUND" ? (
-            <div className="gov-alert gov-alert-warning">No request found for this person and APAAR ID.</div>
+            <div className="gov-alert gov-alert-warning">No request found for this code.</div>
           ) : (
             <div style={{ display: "grid", gap: "0.7rem" }}>
               <div style={{ display: "flex", gap: "0.65rem", alignItems: "center" }}>
-                <span style={{ borderRadius: "999px", padding: "0.35rem 0.7rem", background: statusResult.status === "APPROVED" ? "#DCFCE7" : statusResult.status === "DENIED" ? "#FEE2E2" : "#F3F4F6", color: statusResult.status === "APPROVED" ? "#166534" : statusResult.status === "DENIED" ? "#991B1B" : "#374151", fontWeight: 700 }}>{statusResult.status}</span>
+                <span style={{ borderRadius: "999px", padding: "0.35rem 0.7rem", background: statusResult.status === "VERIFIED" ? "#DCFCE7" : statusResult.status === "DENIED" ? "#FEE2E2" : statusResult.status === "PENDING" ? "#F3F4F6" : "#E0F2FE", color: statusResult.status === "VERIFIED" ? "#166534" : statusResult.status === "DENIED" ? "#991B1B" : "#374151", fontWeight: 700 }}>{statusResult.status}</span>
                 <strong>Request ID: {statusResult.requestId}</strong>
               </div>
               <div style={{ color: "var(--text-muted)" }}>
                 Requested on: {statusResult.requestedAt ? new Date(statusResult.requestedAt).toLocaleString("en-IN") : "—"}
               </div>
               <div style={{ color: "var(--text-muted)" }}>
-                {statusResult.status === "PENDING" ? "The student has not yet approved or denied your request." : statusResult.status === "APPROVED" ? "The student has approved access. You can proceed with the requested verification." : "The student denied access for this purpose."}
+                {statusResult.status === "VERIFIED" ? "The student has verified their record and approved access. You can view the verified tag." : statusResult.status === "PENDING" ? "The student has not yet approved or denied your request." : statusResult.status === "APPROVED" ? "The student has approved access but the verification record is still pending confirmation." : "The student denied access for this purpose."}
               </div>
             </div>
           )

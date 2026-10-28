@@ -4,7 +4,7 @@ export function GovFooter() {
     <footer className="gov-footer" role="contentinfo">
       <div className="gov-container gov-footer-inner">
         <div>
-          <strong>EDUVÉRIFY</strong>
+          <strong>AICTE VIDYA</strong>
           <span> — Academic Data Verification</span>
         </div>
         <div>Not an official government site.</div>

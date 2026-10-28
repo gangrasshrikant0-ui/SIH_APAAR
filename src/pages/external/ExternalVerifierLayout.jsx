@@ -16,6 +16,7 @@ export function ExternalVerifierLayout() {
       <header style={{ background: "linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)", color: "#FFFFFF", padding: "1rem 1.25rem", borderRadius: "14px", marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+            <img src="/aicte-vidya-logo.jpe" alt="AICTE VIDYA logo" className="portal-header-logo" />
             <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <ShieldCheck size={22} />
             </div>
@@ -42,7 +43,7 @@ export function ExternalVerifierLayout() {
           1. Generate request
         </NavLink>
         <NavLink to="/external/history" className={({ isActive }) => `portal-tab ${isActive ? "active" : ""}`}>
-          2. Check status
+          2. Verfication History
         </NavLink>
       </nav>
 

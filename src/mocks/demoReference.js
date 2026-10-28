@@ -24,7 +24,7 @@ export const VALID_CATEGORIES = [
 // Demo-only APAAR-like identifiers. Canonical stored value remains 12 numeric digits
 // so existing format checks keep working. DEMO-AP-****** is a labelled alias.
 export const SYNTHETIC_APAAR_ALLOWLIST = [
-  { demoCode: "DEMO-AP-000001", apaarId: "111122223333", name: "Aarav Sharma", dateOfBirth: "2007-04-12" },
+  { demoCode: "DEMO-AP-000001", apaarId: "984251638019", name: "Aarav Sharma", dateOfBirth: "2007-04-12" },
   { demoCode: "DEMO-AP-000002", apaarId: "111122223334", name: "Diya Deshpande", dateOfBirth: "2007-09-21" },
   { demoCode: "DEMO-AP-000003", apaarId: "111122223335", name: "Aditya Mehta", dateOfBirth: "2007-01-18" },
   { demoCode: "DEMO-AP-000004", apaarId: "222233334441", name: "Pooja Hegde", dateOfBirth: "2007-05-30" },
@@ -52,6 +52,7 @@ export const SYNTHETIC_APAAR_ALLOWLIST = [
   { demoCode: "DEMO-AP-000025", apaarId: "998877665544", name: "*", dateOfBirth: "2007-01-01" },
   { demoCode: "DEMO-AP-000026", apaarId: "887766554433", name: "*", dateOfBirth: "2007-01-01" },
   { demoCode: "DEMO-AP-000027", apaarId: "121212121212", name: "Anjali Desai", dateOfBirth: "2006-04-04" },
+  { demoCode: "DEMO-AP-000032", apaarId: "982345678901", name: "Ananya Patil", dateOfBirth: "2006-08-12" },
   { demoCode: "DEMO-AP-000028", apaarId: "111122223336", name: "Sana Kulkarni", dateOfBirth: "2007-04-04" },
   { demoCode: "DEMO-AP-000029", apaarId: "111122223337", name: "Harsh Vyas", dateOfBirth: "2007-04-05" },
   { demoCode: "DEMO-AP-000030", apaarId: "111122223338", name: "Neel Kapoor", dateOfBirth: "2007-04-06" },
@@ -159,7 +160,7 @@ export const DEMO_STUDENT_ACCOUNTS = [
     role: "STUDENT",
     id: "STU-001",
     name: "Aarav Sharma",
-    apaarId: "111122223333",
+    apaarId: "984251638019",
     prn: "PRN-2026001",
     institutionName: "Pune Institute of Computer Technology",
     email: "aarav.sharma@student.edu",

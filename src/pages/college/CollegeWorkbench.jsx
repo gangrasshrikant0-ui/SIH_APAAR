@@ -8,7 +8,9 @@ import {
   Clock,
   FastForward,
   CheckSquare,
-  SlidersHorizontal
+  SlidersHorizontal,
+  FileDown,
+  Printer
 } from "lucide-react";
 
 import { collegeApi } from "../../api/collegeApi";
@@ -26,6 +28,28 @@ function formatDate(value) {
 
   if (Number.isNaN(date.getTime())) {
     return value;
+  }
+
+  function downloadAnomaliesCsv(issues) {
+    const rows = [
+      ["Student", "APAAR ID", "Issue", "Severity", "Status", "Date Flagged", "Date Resolved"],
+      ...issues.map((issue) => [
+        issue.studentName || "",
+        issue.apaarId || "",
+        issue.issueTitle || issue.issueType || "",
+        issue.severity || "",
+        issue.issueStatus || "",
+        formatDate(issue.flaggedAt),
+        formatDate(issue.resolvedAt)
+      ])
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "aicte-vidya-anomalies.csv";
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   return date.toLocaleDateString();
@@ -771,13 +795,29 @@ export function CollegeWorkbench() {
         <div className={`issue-table-layout${filtersOpen ? " with-filters" : ""}`}>
           {filtersOpen && filterSidebar}
 
-          <div className="issue-table-main">
+          <div className="issue-table-main workbench-print-area">
             <div className="issue-table-toolbar">
               <h3>
                 {view === "resolved"
                   ? "Resolved issues"
                   : "Unresolved issues"}
               </h3>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => downloadAnomaliesCsv(issues)}
+              >
+                <FileDown size={14} />
+                Download anomalies CSV
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => window.print()}
+              >
+                <Printer size={14} />
+                Printable view (PDF)
+              </button>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"

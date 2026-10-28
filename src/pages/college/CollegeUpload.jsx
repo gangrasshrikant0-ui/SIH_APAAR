@@ -255,7 +255,7 @@ export function CollegeUpload() {
     const institutionName = getCurrentUser()?.institutionName || "Institution";
     const csvContent = "data:text/csv;charset=utf-8," +
       "PRN,Student Full Name,APAAR ID (12 Digits),Degree & Programme,Academic Year of Study,Seat Category,OCI Status,Foreign National Status,Supernumerary Seats,Date of Admission\n" +
-      "SE-COMP-001,Aarav Sharma,111122223333,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-01\n" +
+      "SE-COMP-001,Aarav Sharma,984251638019,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-01\n" +
       "SE-COMP-012,Rajesh Sharma,,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-10\n" +
       "SE-COMP-025,Ananya Patil,98234-ABCD,Computer Engineering,SE,OBC,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-12\n" +
       "SE-COMP-004,Vikram Joshi,234567890123,Computer Engineering,SE,GENERAL,NOT_APPLICABLE,NOT_APPLICABLE,0,2026-08-05\n" +

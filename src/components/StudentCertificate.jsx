@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Award, Download, Search } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { collegeApi } from "../api/collegeApi";
 import { getBackendStudentJourney, isBackendConfigured } from "../api/ingestionApi";
 
@@ -48,9 +47,7 @@ export function StudentCertificate() {
     }
   };
 
-  const verificationId = record
-    ? record.recordReference || `EDU-${record.institutionId}-${record.id}`
-    : "";
+  const verificationId = record ? (record.recordReference || `EDU-${record.institutionId}-${record.id}`) : "";
   const verificationLink = verificationId
     ? `${window.location.origin}/external/verify?reference=${encodeURIComponent(verificationId)}`
     : "";
@@ -86,30 +83,56 @@ export function StudentCertificate() {
       {lookupNotice && <p className="certificate-message" role="status">{lookupNotice}</p>}
       {record && (
         <div className="certificate-result">
-          <dl>
-            <dt>Student name</dt><dd>{record.studentName}</dd>
-            <dt>Institutional Student ID / PRN</dt><dd>{record.studentId}</dd>
-            <dt>Programme</dt><dd>{record.programme}</dd>
-            <dt>Academic year</dt><dd>{record.academicYear || "2026-2027"}</dd>
-            <dt>APAAR ID</dt><dd>{record.apaarId}</dd>
-            <dt>Institution</dt><dd>{record.institutionName}</dd>
-            <dt>Institution ID</dt><dd>{record.institutionId}</dd>
-            <dt>Verification ID</dt><dd>{verificationId || "Unavailable"}</dd>
-          </dl>
           <div className="certificate-actions">
             <button type="button" className="btn btn-primary" onClick={() => window.print()}>
               <Download size={15} /> Print / Download Certificate
             </button>
           </div>
+
           <div className="certificate-print-preview">
-            <p>EDUVÉRIFY Institutional Certificate</p>
-            <h3>Student Credential Certificate</h3>
-            <p><strong>{record.studentName}</strong></p>
-            <p>{record.programme} · {record.academicYear || "2026-2027"} · APAAR {record.apaarId}</p>
-            <p>{record.institutionName} · {record.institutionId}</p>
-            {verificationId && <p>Verification ID: {verificationId}</p>}
-            {verificationLink && <QRCodeSVG value={verificationLink} size={120} />}
-            <small>Accepted record. Not an officially signed government credential.</small>
+            <div className="certificate-template">
+              <div className="certificate-template-frame">
+                <div className="certificate-template-pattern" />
+                <div className="certificate-template-gold-frame">
+                  <div className="certificate-template-canvas">
+                    <div className="certificate-template-emblem">
+                      <svg viewBox="0 0 100 115" aria-hidden="true"><path d="M50 8 C40 8 36 16 36 24 C36 29 39 34 43 37 C39 40 37 45 37 50 C37 54 39 57 41 59 C37 63 35 69 35 75 L35 84 L65 84 L65 75 C65 69 63 63 59 59 C61 57 63 54 63 50 C63 45 61 40 57 37 C61 34 64 29 64 24 C64 16 60 8 50 8 Z M22 28 C18 28 14 34 14 42 C14 48 17 54 22 57 C20 62 21 68 23 72 L32 72 L32 60 C30 57 28 53 28 47 C28 42 30 38 33 35 C31 31 27 28 22 28 Z M78 28 C73 28 69 31 67 35 C70 38 72 42 72 47 C72 53 70 57 68 60 L68 72 L77 72 C79 68 80 62 78 57 C83 54 86 48 86 42 C86 34 82 28 78 28 Z M25 86 H75 V95 H25 Z" /></svg>
+                      <span>SATYAMEV JAYATE</span>
+                    </div>
+                    <div className="certificate-template-government">Government of India - Ministry of Education</div>
+                    <div className="certificate-template-council">All India Council for Technical Education</div>
+                    <div className="certificate-template-title">Certificate of Verified Student Credential</div>
+                    <div className="certificate-template-subtitle">National APAAR Academic Identity &amp; Enrolment Verification</div>
+
+                    <div className="certificate-template-info">
+                      <div className="certificate-template-row">
+                        <div><span>Full Name:</span><strong>{record.studentName}</strong></div>
+                        <div><span>Academic Session:</span><strong>{record.academicYear || "2024-2028"}</strong></div>
+                      </div>
+                      <div className="certificate-template-row three">
+                        <div><span>12-Digit APAAR ID:</span><strong>{record.apaarId.replace(/(\d{4})(?=\d)/g, "$1 ")}</strong></div>
+                        <div><strong>{record.institutionName}</strong><small>Bachelor of Technology in {record.programme}</small></div>
+                        <div><span>Year of Study:</span><strong>{record.yearOfStudy || "SE"}</strong></div>
+                      </div>
+                      <div className="certificate-template-row">
+                        <div><span>Institutional PRN:</span><strong>{record.studentId || "PICT-CS-2024-089"}</strong></div>
+                        <div><span>Status:</span><strong>AUTHENTICATED &amp; ACCEPTED</strong></div>
+                      </div>
+                    </div>
+
+                    <div className="certificate-template-footer">
+                      <div className="certificate-template-verification">VERIFICATION ID:<br /><strong>{verificationId}</strong></div>
+                      <div className="certificate-template-seal"><span>AICTE</span><small>RECOGNIZED</small><b>⚖</b></div>
+                      <div className="certificate-template-signatures">
+                        <div><em>Asharma</em><span>Registrar</span><small>06-05-2024</small></div>
+                        <div className="certificate-template-stamp">ALL INDIA COUNCIL<br /><b>♜</b><br />MINISTRY OF EDUCATION</div>
+                        <div><em>R.Signnt</em><span>R.S. Registrar</span><small>06-06-2023</small></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
